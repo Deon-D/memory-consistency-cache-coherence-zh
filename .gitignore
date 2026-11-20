@@ -1,0 +1,17 @@
+# Local environment and caches
+.codex/
+.agents/
+.env
+.env.*
+!.env.example
+node_modules/
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Translation fragments already merged into the final chapters
+translations/*_part.json
+scripts/polish_root_fragment.py

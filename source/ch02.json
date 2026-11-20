@@ -1,0 +1,919 @@
+{
+  "id": "ch02",
+  "title_en": "Coherence Basics",
+  "title_zh": "缓存一致性基础",
+  "pdf_start": 31,
+  "pdf_end": 38,
+  "blocks": [
+    {
+      "id": "p031b01",
+      "pdf_page": 31,
+      "book_page": "9",
+      "kind": "heading",
+      "en": "C H A P T E R 2",
+      "bbox": [
+        391.33,
+        174.5,
+        524.7,
+        191.1
+      ]
+    },
+    {
+      "id": "p031b02",
+      "pdf_page": 31,
+      "book_page": "9",
+      "kind": "heading",
+      "en": "Coherence Basics",
+      "bbox": [
+        342.99,
+        208.58,
+        573.06,
+        239.69
+      ]
+    },
+    {
+      "id": "p031b03",
+      "pdf_page": 31,
+      "book_page": "9",
+      "kind": "paragraph",
+      "en": "In this chapter, we introduce enough about cache coherence to understand how consistency models interact with caches. We start in Section 2.1 by presenting the system model that we consider throughout this primer. To simplify the exposition in this chapter and the following chapters, we select the simplest possible system model that is sufficient for illustrating the important issues; we defer until Chapter 9 issues related to more complicated system models. Section 2.2 explains the cache coherence problem that must be solved and how the possibility of incoherence arises. Section 2.3 precisely defines cache coherence.",
+      "bbox": [
+        251.8,
+        268.44,
+        664.26,
+        360.03
+      ]
+    },
+    {
+      "id": "p031b04",
+      "pdf_page": 31,
+      "book_page": "9",
+      "kind": "heading",
+      "en": "2.1 BASELINE SYSTEM MODEL",
+      "bbox": [
+        251.8,
+        394.68,
+        481.61,
+        408.68
+      ]
+    },
+    {
+      "id": "p031b05",
+      "pdf_page": 31,
+      "book_page": "9",
+      "kind": "paragraph",
+      "en": "In this primer, we consider systems with multiple processor cores that share memory. That is, all cores can perform loads and stores to all (physical) addresses. The baseline system model includes a single multicore processor chip and off-chip main memory, as illustrated in Figure 2.1. The multicore processor chip consists of multiple single-threaded cores, each of which has its own private data cache, and a last-level cache (LLC) that is shared by all cores. Throughout this primer, when we use the term “cache,” we are referring to a core’s private data cache and not the LLC. Each core’s data cache is accessed with physical addresses and is write-back. The cores and the LLC communicate with each other over an interconnection network. The LLC, despite being on the processor chip, is logically a “memory-side cache” and thus does not introduce another level of coherence issues. The LLC is logically just in front of the memory and serves to reduce the average latency of memory accesses and increase the memory’s effective bandwidth. The LLC also serves as an on-chip memory controller.",
+      "bbox": [
+        251.8,
+        433.83,
+        664.26,
+        592.67
+      ]
+    },
+    {
+      "id": "p031b06",
+      "pdf_page": 31,
+      "book_page": "9",
+      "kind": "paragraph",
+      "en": "This baseline system model omits many features that are common but that are not required for purposes of most of this primer. These features include instruction caches, multiple-level caches, caches shared among multiple cores, virtually addressed caches, TLBs, and coherent direct memory access (DMA). The baseline system model also omits the possibility of multiple multicore chips. We will discuss all of these features later, but for now, they would add unnecessary complexity.",
+      "bbox": [
+        251.8,
+        595.23,
+        664.26,
+        673.37
+      ]
+    },
+    {
+      "id": "p032b01",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "Core Core",
+      "bbox": [
+        324.35,
+        195.05,
+        564.35,
+        205.05
+      ]
+    },
+    {
+      "id": "p032b02",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "Cache Private Cache Private Controller Data Cache Controller Data Cache",
+      "bbox": [
+        313.34,
+        239.55,
+        646.8,
+        261.55
+      ]
+    },
+    {
+      "id": "p032b03",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "Interconnection Network",
+      "bbox": [
+        419.39,
+        285.55,
+        521.32,
+        295.55
+      ]
+    },
+    {
+      "id": "p032b04",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "Last-level LLC/Memory Cache Controller (LLC) Multicore Processor Chip",
+      "bbox": [
+        309.86,
+        327.04,
+        624.49,
+        372.08
+      ]
+    },
+    {
+      "id": "p032b05",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "Main Memory",
+      "bbox": [
+        354.06,
+        414.58,
+        414.66,
+        424.58
+      ]
+    },
+    {
+      "id": "p032b06",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "caption",
+      "en": "Figure 2.1: Baseline system model used throughout this primer.",
+      "bbox": [
+        271.75,
+        449.72,
+        548.46,
+        460.61
+      ]
+    },
+    {
+      "id": "p032b07",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "heading",
+      "en": "2.2 THE PROBLEM: HOW INCOHERENCE COULD POSSIBLY OCCUR",
+      "bbox": [
+        271.75,
+        483.9,
+        633.3,
+        513.35
+      ]
+    },
+    {
+      "id": "p032b08",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "The possibility of incoherence arises only because of one fundamental issue: there exist multiple actors with access to caches and memory. In modern systems, these actors are processor cores, DMA engines, and external devices that can read and/or write to caches and memory. In the rest of this primer, we generally focus on actors that are cores, but it is worth keeping in mind that other actors may exist.",
+      "bbox": [
+        271.75,
+        523.01,
+        684.21,
+        587.7
+      ]
+    },
+    {
+      "id": "p032b09",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "caption",
+      "en": "Table 2.1 illustrates a simple example of incoherence. Initially, memory location A has",
+      "bbox": [
+        298.65,
+        590.26,
+        684.2,
+        601.15
+      ]
+    },
+    {
+      "id": "p032b10",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "the value 42 in memory as well as both of the cores’ local caches. At time 1, Core 1 changes the value at memory location A from 42 to 43 in its cache, making Core 2’s value of A in its cache stale. Core 2 executes a while loop loading, repeatedly, the (stale) value of A from its local cache. Clearly, this is an example of incoherence as the store from Core 1 has not not been made visible to Core 2 and consequently C2 is stuck in the while loop.",
+      "bbox": [
+        271.75,
+        603.71,
+        684.21,
+        668.39
+      ]
+    },
+    {
+      "id": "p032b11",
+      "pdf_page": 32,
+      "book_page": "10",
+      "kind": "paragraph",
+      "en": "To prevent incoherence, the system must implement a cache coherence protocol that makes the store from Core 1 visible to Core 2. The design and implementation of these cache coherence protocols are the main topics of Chapters 6–9.",
+      "bbox": [
+        271.75,
+        670.95,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p033b01",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "caption",
+      "en": "Table 2.1: Example of incoherence. Assume the value of memory at memory location A is ini-",
+      "bbox": [
+        251.8,
+        175.76,
+        664.25,
+        186.65
+      ]
+    },
+    {
+      "id": "p033b02",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "paragraph",
+      "en": "tially 42 and cached in the local caches of both cores.",
+      "bbox": [
+        251.8,
+        189.21,
+        482.77,
+        200.1
+      ]
+    },
+    {
+      "id": "p033b03",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "paragraph",
+      "en": "Time Core C1 Core C2 1 S1: A = 43; L1: while (A == 42); 2 L2: while (A == 42); 3 L3: while (A == 42); 4 … n Ln: while (A == 42);",
+      "bbox": [
+        337.34,
+        214.02,
+        567.3,
+        304.73
+      ]
+    },
+    {
+      "id": "p033b04",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "heading",
+      "en": "2.3 THE CACHE COHERENCE INTERFACE",
+      "bbox": [
+        251.8,
+        334.79,
+        561.88,
+        348.79
+      ]
+    },
+    {
+      "id": "p033b05",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "paragraph",
+      "en": "Informally, a coherence protocol must ensure that writes are made visible to all processors. In this section, we will more formally understand coherence protocols through the abstract interfaces they expose.",
+      "bbox": [
+        251.8,
+        360.89,
+        664.26,
+        398.68
+      ]
+    },
+    {
+      "id": "p033b06",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "paragraph",
+      "en": "The processor cores interact with the coherence protocol through a coherence interface (Figure 2.2) that provides two methods: (1) a read-request method that takes in a memory location as the parameter and returns a value; and (2) a write-request method that takes in a memory location and a value (to be written) as parameters and returns an acknowledgment.",
+      "bbox": [
+        251.8,
+        401.24,
+        664.26,
+        452.48
+      ]
+    },
+    {
+      "id": "p033b07",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "paragraph",
+      "en": "There are many coherence protocols that have appeared in the literature and been employed in real processors. We classify these protocols into two categories based on the nature of their coherence interfaces—specifically, based on whether there is a clean separation of coherence from the consistency model or whether they are indivisible.",
+      "bbox": [
+        251.8,
+        455.04,
+        664.26,
+        506.28
+      ]
+    },
+    {
+      "id": "p033b08",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "paragraph",
+      "en": "Consistency-agnostic coherence. In the first category, a write is made visible to all other cores before returning. Because writes are propagated synchronously, the first category presents an interface that is identical to that of an atomic memory system (with no caches). Thus, any subsystem that interacts with the coherence protocol—e.g., the processor core pipeline—can assume it is interacting with an atomic memory system with no caches present. From a consistency enforcement perspective, this coherence interface enables a nice separation of concerns. The cache coherence protocol abstracts away the caches completely and presents an illusion of atomic memory—it is as if the caches are removed and only the memory is contained within the coherence box (Figure 2.2)—while the processor core pipeline enforces the orderings mandated by the consistency model specification.",
+      "bbox": [
+        251.8,
+        515.92,
+        664.26,
+        647.86
+      ]
+    },
+    {
+      "id": "p033b09",
+      "pdf_page": 33,
+      "book_page": "11",
+      "kind": "paragraph",
+      "en": "Consistency-directed coherence. In the second, more-recent category, writes are propagated asynchronously—a write can thus return before it has been made visible to all processors, thus allowing for stale values (in real time) to be observed. However, in order to correctly enforce consistency, coherence protocols in this class must ensure that the order in which writes are",
+      "bbox": [
+        251.8,
+        657.5,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p034b01",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "Core Core Core … … Pipeline Pipeline Pipeline",
+      "bbox": [
+        293.03,
+        210.18,
+        664.08,
+        232.18
+      ]
+    },
+    {
+      "id": "p034b02",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "read-request(…) read-response(…) Pipeline write-request(…) write-response(…)",
+      "bbox": [
+        279.55,
+        247.52,
+        579.34,
+        270.85
+      ]
+    },
+    {
+      "id": "p034b03",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "Coherence",
+      "bbox": [
+        279.55,
+        279.52,
+        322.85,
+        289.52
+      ]
+    },
+    {
+      "id": "p034b04",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "Private Private Private Cache Cache Cache",
+      "bbox": [
+        294.84,
+        298.85,
+        659.61,
+        320.85
+      ]
+    },
+    {
+      "id": "p034b05",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "LLC",
+      "bbox": [
+        472.75,
+        330.85,
+        493.03,
+        340.85
+      ]
+    },
+    {
+      "id": "p034b06",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "MAIN MEMORY",
+      "bbox": [
+        443.2,
+        357.52,
+        522.59,
+        367.52
+      ]
+    },
+    {
+      "id": "p034b07",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "caption",
+      "en": "Figure 2.2: The pipeline-coherence interface.",
+      "bbox": [
+        271.75,
+        387.72,
+        466.88,
+        398.61
+      ]
+    },
+    {
+      "id": "p034b08",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "eventually made visible adheres to the ordering rules mandated by the consistency model. Referring back to Figure 2.2, both the pipeline and the coherence protocol enforce the orderings mandated by the consistency model. This second category emerged to support throughput-based general-purpose graphics processing units (GP-GPUs) and gained prominence after the publication of the first edition of this primer.1",
+      "bbox": [
+        271.75,
+        417.96,
+        684.21,
+        482.65
+      ]
+    },
+    {
+      "id": "p034b09",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "The primer (and the rest of the chapter) focuses on the first class of coherence protocols. We discuss the second class of coherence protocols in the context of heterogeneous coherence (Chapter 10).",
+      "bbox": [
+        271.75,
+        485.21,
+        684.21,
+        523.0
+      ]
+    },
+    {
+      "id": "p034b10",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "heading",
+      "en": "2.4 (CONSISTENCY-AGNOSTIC) COHERENCE INVARIANTS",
+      "bbox": [
+        271.75,
+        540.1,
+        605.35,
+        569.55
+      ]
+    },
+    {
+      "id": "p034b11",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "What invariants must a coherence protocol satisfy to make the caches invisible and present an abstraction of an atomic memory system?",
+      "bbox": [
+        271.75,
+        576.22,
+        684.2,
+        600.55
+      ]
+    },
+    {
+      "id": "p034b12",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "There are several definitions of coherence that have appeared in textbooks and in published papers, and we do not wish to present all of them. Instead, we present the definition we prefer for its insight into the design of coherence protocols. In the sidebar, we discuss alternative definitions and how they relate to our preferred definition.",
+      "bbox": [
+        271.75,
+        603.11,
+        684.21,
+        654.35
+      ]
+    },
+    {
+      "id": "p034b13",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "We define coherence through the single-writer–multiple-reader (SWMR) invariant. For any given memory location, at any given moment in time, there is either a single core that may",
+      "bbox": [
+        271.75,
+        656.91,
+        684.21,
+        681.25
+      ]
+    },
+    {
+      "id": "p034b14",
+      "pdf_page": 34,
+      "book_page": "12",
+      "kind": "paragraph",
+      "en": "1For those of you concerned about the implications on consistency, note that it is possible to to enforce a variety of consistency models, including strong models such as SC and TSO, using this approach.",
+      "bbox": [
+        271.75,
+        688.93,
+        684.2,
+        708.06
+      ]
+    },
+    {
+      "id": "p035b01",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "write it (and that may also read it) or some number of cores that may read it. Thus, there is never a time when a given memory location may be written by one core and simultaneously either read or written by any other cores. Another way to view this definition is to consider, for each memory location, that the memory location’s lifetime is divided up into epochs. In each epoch, either a single core has read-write access or some number of cores (possibly zero) have read-only access. Figure 2.3 illustrates the lifetime of an example memory location, divided into four epochs that maintain the SWMR invariant.",
+      "bbox": [
+        251.8,
+        174.72,
+        664.26,
+        266.3
+      ]
+    },
+    {
+      "id": "p035b02",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "Time Read-only Read-write Read-write Read-only Cores 2 and 5 Core 3 Core 1 Cores 1, 2, and 3",
+      "bbox": [
+        259.57,
+        291.77,
+        663.45,
+        322.44
+      ]
+    },
+    {
+      "id": "p035b03",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "caption",
+      "en": "Figure 2.3: Dividing a given memory location’s lifetime into epochs.",
+      "bbox": [
+        251.8,
+        338.09,
+        548.06,
+        348.98
+      ]
+    },
+    {
+      "id": "p035b04",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "In addition to the SWMR invariant, coherence requires that the value of a given memory location is propagated correctly. To explain why values matter, let us reconsider the example in Figure 2.3. Even though the SWMR invariant holds, if during the first read-only epoch Cores 2 and 5 can read different values, then the system is not coherent. Similarly, the system is incoherent if Core 1 fails to read the last value written by Core 3 during its read-write epoch or any of Cores 1, 2, or 3 fail to read the last write performed by Core 1 during its read-write epoch.",
+      "bbox": [
+        251.8,
+        365.88,
+        664.25,
+        457.47
+      ]
+    },
+    {
+      "id": "p035b05",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "Thus, the definition of coherence must augment the SWMR invariant with a data value invariant that pertains to how values are propagated from one epoch to the next. This invariant states that the value of a memory location at the start of an epoch is the same as the value of the memory location at the end of its last read-write epoch.",
+      "bbox": [
+        251.8,
+        460.03,
+        664.25,
+        511.27
+      ]
+    },
+    {
+      "id": "p035b06",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "There are other interpretations of these invariants that are equivalent. One notable example [5] interpreted the SMWR invariants in terms of tokens. The invariants are as follows. For each memory location, there exists a fixed number of tokens that is at least as large as the number of cores. If a core has all of the tokens, it may write the memory location. If a core has one or more tokens, it may read the memory location. At any given time, it is thus impossible for one core to be writing the memory location while any other core is reading or writing it.",
+      "bbox": [
+        251.8,
+        513.83,
+        664.26,
+        591.97
+      ]
+    },
+    {
+      "id": "p035b07",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "Coherence invariants",
+      "bbox": [
+        410.27,
+        616.25,
+        507.77,
+        627.14
+      ]
+    },
+    {
+      "id": "p035b08",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "1. Single-Writer, Multiple-Read (SWMR) Invariant. For any memory location A, at any given time, there exists only a single core that may write to A (and can also read it) or some number of cores that may only read A.",
+      "bbox": [
+        269.67,
+        633.69,
+        660.09,
+        671.48
+      ]
+    },
+    {
+      "id": "p035b09",
+      "pdf_page": 35,
+      "book_page": "13",
+      "kind": "paragraph",
+      "en": "2. Data-Value Invariant. The value of the memory location at the start of an epoch is the same as the value of the memory location at the end of the its last read-write epoch.",
+      "bbox": [
+        269.67,
+        682.01,
+        660.09,
+        706.35
+      ]
+    },
+    {
+      "id": "p036b01",
+      "pdf_page": 36,
+      "book_page": "14",
+      "kind": "paragraph",
+      "en": "2.4.1 MAINTAINING THE COHERENCE INVARIANTS The coherence invariants presented in the previous section provide some intuition into how coherence protocols work. The vast majority of coherence protocols, called “invalidate protocols,” are designed explicitly to maintain these invariants. If a core wants to read a memory location, it sends messages to the other cores to obtain the current value of the memory location and to ensure that no other cores have cached copies of the memory location in a read-write state. These messages end any active read-write epoch and begin a read-only epoch. If a core wants to write to a memory location, it sends messages to the other cores to obtain the current value of the memory location, if it does not already have a valid read-only cached copy, and to ensure that no other cores have cached copies of the memory location in either read-only or read-write states. These messages end any active read-write or read-only epoch and begin a new read-write epoch. This primer’s chapters on cache coherence (Chapters 6–9) expand greatly upon this abstract description of invalidate protocols, but the basic intuition remains the same.",
+      "bbox": [
+        271.75,
+        174.57,
+        684.21,
+        350.52
+      ]
+    },
+    {
+      "id": "p036b02",
+      "pdf_page": 36,
+      "book_page": "14",
+      "kind": "paragraph",
+      "en": "2.4.2 THE GRANULARITY OF COHERENCE A core can perform loads and stores at various granularities, often ranging from 1–64 bytes. In theory, coherence could be performed at the finest load/store granularity. However, in practice, coherence is usually maintained at the granularity of cache blocks. That is, the hardware enforces coherence on a cache block by cache block basis. In practice, the SWMR invariant is likely to be that, for any block of memory, there is either a single writer or some number of readers. In typical systems, it is not possible for one core to be writing to the first byte of a block while another core is writing to another byte within that block. Although cache-block granularity is common, and it is what we assume throughout the rest of this primer, one should be aware that there have been protocols that have maintained coherence at finer and coarser granularities.",
+      "bbox": [
+        271.75,
+        370.56,
+        684.21,
+        506.16
+      ]
+    },
+    {
+      "id": "p036b03",
+      "pdf_page": 36,
+      "book_page": "14",
+      "kind": "paragraph",
+      "en": "Sidebar: Consistency-Like Definitions of Coherence Our preferred definition of coherence defines it from an implementation perspective—specifying hardware-enforced invariants regarding the access permissions of different cores to a memory location and the data values passed between cores. There exists another class of definitions that defines coherence from a programmer’s perspective, similar to how memory consistency models specify architecturally visible orderings of loads and stores. One consistency-like approach to specifying coherence is related to the definition of sequential consistency. Sequential consistency (SC), a memory consistency model that we discuss in great depth in Chapter 3, specifies that the system must appear to execute all threads’ loads and stores to all memory locations in a total order that respects the program order of each thread. Each load gets the value of the most recent store in that total order. A definition of coherence that is analogous to the definition of SC is that a coher-",
+      "bbox": [
+        281.71,
+        526.41,
+        674.25,
+        698.69
+      ]
+    },
+    {
+      "id": "p037b01",
+      "pdf_page": 37,
+      "book_page": "15",
+      "kind": "paragraph",
+      "en": "ent system must appear to execute all threads’ loads and stores to a single memory location in a total order that respects the program order of each thread. This definition highlights an important distinction between coherence and consistency in the literature: coherence is specified on a per-memory location basis, whereas consistency is specified with respect to all memory locations. It is worth noting that any coherence protocol that satisfies the SWMR and data-value invariants (combined with a pipeline that does not reorder accesses to any specific location) is also guaranteed to satisfy this consistency-like definition of coherence. (However, the converse is not necessarily true.)",
+      "bbox": [
+        261.76,
+        181.31,
+        654.29,
+        286.34
+      ]
+    },
+    {
+      "id": "p037b02",
+      "pdf_page": 37,
+      "book_page": "15",
+      "kind": "paragraph",
+      "en": "Another definition [1, 2] of coherence defines coherence with two invariants: (1) every store is eventually made visible to all cores and (2) writes to the same memory location are serialized (i.e., observed in the same order by all cores). IBM takes a similar view in the Power architecture [4], in part to facilitate implementations in which a sequence of stores by one core may have reached some cores (their values visible to loads by those cores) but not other cores. Invariant 2 is equivalent to the consistency-like definition we described earlier. In contrast to invariant 2, which is a safety invariant (bad things must not happen), invariant 1 is a liveness invariant (good things must eventually happen).",
+      "bbox": [
+        261.76,
+        288.9,
+        654.3,
+        393.94
+      ]
+    },
+    {
+      "id": "p037b03",
+      "pdf_page": 37,
+      "book_page": "15",
+      "kind": "paragraph",
+      "en": "Another definition of coherence, as specified by Hennessy and Patterson [3], consists of three invariants: (1) a load to memory location A by a core obtains the value of the previous store to A by that core, unless another core has stored to A in between; (2) a load to A obtains the value of a store S to A by another core if S and the load “are sufficiently separated in time” and if no other store occurred between S and the load; and (3) stores to the same memory location are serialized (same as invariant 2 in the previous definition). Like the previous definition, this set of invariants captures both safety and liveness.",
+      "bbox": [
+        261.76,
+        396.5,
+        654.3,
+        488.09
+      ]
+    },
+    {
+      "id": "p037b04",
+      "pdf_page": 37,
+      "book_page": "15",
+      "kind": "paragraph",
+      "en": "2.4.3 WHEN IS COHERENCE RELEVANT? The definition of coherence—regardless of which definition we choose—is relevant only in certain situations, and architects must be aware of when it pertains and when it does not. We now discuss two important issues.",
+      "bbox": [
+        251.8,
+        517.28,
+        664.26,
+        572.19
+      ]
+    },
+    {
+      "id": "p037b05",
+      "pdf_page": 37,
+      "book_page": "15",
+      "kind": "paragraph",
+      "en": "• Coherence pertains to all storage structures that hold blocks from the shared address space. These structures include the L1 data cache, L2 cache, shared last-level cache (LLC), and main memory. These structures also include the L1 instruction cache and translation lookaside buffers (TLBs).2",
+      "bbox": [
+        268.02,
+        582.72,
+        664.26,
+        633.96
+      ]
+    },
+    {
+      "id": "p037b06",
+      "pdf_page": 37,
+      "book_page": "15",
+      "kind": "paragraph",
+      "en": "• Coherence is not directly visible to the programmer. Rather, the processor pipeline and coherence protocol jointly enforce the consistency model—and it is only the consistency model that is visible to the programmer.",
+      "bbox": [
+        268.02,
+        644.49,
+        664.25,
+        682.28
+      ]
+    },
+    {
+      "id": "p037b07",
+      "pdf_page": 37,
+      "book_page": "15",
+      "kind": "paragraph",
+      "en": "2In some architectures, the TLB can hold mappings that are not strictly copies of blocks in shared memory.",
+      "bbox": [
+        267.02,
+        698.39,
+        624.14,
+        708.06
+      ]
+    },
+    {
+      "id": "p038b01",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "heading",
+      "en": "2.5 REFERENCES",
+      "bbox": [
+        271.75,
+        174.24,
+        404.79,
+        188.24
+      ]
+    },
+    {
+      "id": "p038b02",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "[1] K. Gharachorloo. Memory consistency models for shared-memory multiprocessors. Ph.D.",
+      "bbox": [
+        277.19,
+        195.95,
+        684.21,
+        206.84
+      ]
+    },
+    {
+      "id": "p038b03",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "thesis, Computer System Laboratory, Stanford University, December 1995. 15",
+      "bbox": [
+        295.33,
+        209.4,
+        639.59,
+        220.29
+      ]
+    },
+    {
+      "id": "p038b04",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "[2] K. Gharachorloo, D. Lenoski, J. Laudon, P. Gibbons, A. Gupta, and J. Hennessy.",
+      "bbox": [
+        277.19,
+        230.82,
+        684.21,
+        241.71
+      ]
+    },
+    {
+      "id": "p038b05",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "Memory consistency and event ordering in scalable shared-memory. In Proc. of the 17th Annual International Symposium on Computer Architecture, pp. 15–26, May 1990. DOI: 10.1109/isca.1990.134503. 15",
+      "bbox": [
+        295.33,
+        244.27,
+        684.2,
+        282.06
+      ]
+    },
+    {
+      "id": "p038b06",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "[3] J. L. Hennessy and D. A. Patterson. Computer Architecture: A Quantitative Approach, 4th",
+      "bbox": [
+        277.19,
+        292.59,
+        684.19,
+        303.48
+      ]
+    },
+    {
+      "id": "p038b07",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "ed. Morgan Kaufmann, 2007. 15",
+      "bbox": [
+        295.33,
+        306.04,
+        440.84,
+        316.93
+      ]
+    },
+    {
+      "id": "p038b08",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "[4] IBM. Power ISA Version 2.06 Revision B. http://www.power.org/resources/",
+      "bbox": [
+        277.19,
+        327.33,
+        684.2,
+        338.35
+      ]
+    },
+    {
+      "id": "p038b09",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "downloads/PowerISA_V2.06B_V2_PUBLIC.pdf, July 2010. 15",
+      "bbox": [
+        295.33,
+        340.78,
+        574.01,
+        351.8
+      ]
+    },
+    {
+      "id": "p038b10",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "[5] M. M. K. Martin, M. D. Hill, and D. A. Wood. Token coherence: Decoupling perfor-",
+      "bbox": [
+        277.19,
+        362.33,
+        684.2,
+        373.22
+      ]
+    },
+    {
+      "id": "p038b11",
+      "pdf_page": 38,
+      "book_page": "16",
+      "kind": "paragraph",
+      "en": "mance and correctness. In Proc. of the 30th Annual International Symposium on Computer Architecture, June 2003. DOI: 10.1109/isca.2003.1206999. 13",
+      "bbox": [
+        295.33,
+        375.78,
+        684.19,
+        400.12
+      ]
+    }
+  ]
+}

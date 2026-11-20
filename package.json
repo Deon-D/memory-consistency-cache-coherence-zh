@@ -1,0 +1,12 @@
+{
+  "name": "memory-consistency-primer-translation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "qa:reader": "node scripts/qa_reader.cjs",
+    "build:cover": "node scripts/make_cover.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

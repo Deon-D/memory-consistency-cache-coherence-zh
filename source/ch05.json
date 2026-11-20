@@ -1,0 +1,4637 @@
+{
+  "id": "ch05",
+  "title_en": "Relaxed Memory Consistency",
+  "title_zh": "宽松内存一致性",
+  "pdf_start": 77,
+  "pdf_end": 112,
+  "blocks": [
+    {
+      "id": "p077b01",
+      "pdf_page": 77,
+      "book_page": "55",
+      "kind": "heading",
+      "en": "C H A P T E R 5",
+      "bbox": [
+        391.33,
+        174.5,
+        524.7,
+        191.1
+      ]
+    },
+    {
+      "id": "p077b02",
+      "pdf_page": 77,
+      "book_page": "55",
+      "kind": "heading",
+      "en": "Relaxed Memor y Consistency",
+      "bbox": [
+        262.61,
+        208.43,
+        653.44,
+        239.54
+      ]
+    },
+    {
+      "id": "p077b03",
+      "pdf_page": 77,
+      "book_page": "55",
+      "kind": "paragraph",
+      "en": "The previous two chapters explored the memory consistency models sequential consistency (SC) and total store order (TSO). These chapters presented SC as intuitive and TSO as widely implemented (e.g., in x86). Both models are sometimes called strong because the global memory order of each model usually respects (preserves) per-thread program order. Recall that SC preserves order for two memory operations from the same thread for all four combinations of loads and stores (Load Load, Load Store, Store Store, and Store Load), whereas TSO ! ! ! ! preserves the first three orders but not Store Load order. ! This chapter examines more relaxed (weak) memory consistency models that seek to preserve only the orders that programmers “require.” The principal benefit of this approach is that mandating fewer ordering constraints can facilitate higher performance by allowing more hardware and software (compiler and runtime system) optimizations. The principal drawbacks are that relaxed models must formalize when ordering is “required” and provide mechanisms for programmers or low-level software to communicate such ordering to implementations, and vendors have failed to agree on a single relaxed model, compromising portability.",
+      "bbox": [
+        251.8,
+        268.29,
+        664.26,
+        454.03
+      ]
+    },
+    {
+      "id": "p077b04",
+      "pdf_page": 77,
+      "book_page": "55",
+      "kind": "paragraph",
+      "en": "A full exploration of relaxed consistency models is beyond the scope of this chapter. This chapter is instead a primer that seeks to provide the basic intuition and help make the reader aware of the limits of a simple understanding of these models. In particular, we provide motivation for relaxed models (Section 5.1), present and formalize an example relaxed consistency model XC (Section 5.2), discuss the implementation of XC, including atomic instructions and instructions used to enforce ordering (Section 5.3), introduce sequential consistency for data-race-free programs (Section 5.4), present additional relaxed model concepts (Section 5.5), present the RISC-V and IBM Power memory model case studies (Section 5.6), point to further reading and other commercial models (Section 5.7), compare models (Section 5.8), and touch upon high-level-language memory models (Section 5.9).",
+      "bbox": [
+        251.8,
+        456.59,
+        664.26,
+        588.52
+      ]
+    },
+    {
+      "id": "p077b05",
+      "pdf_page": 77,
+      "book_page": "55",
+      "kind": "heading",
+      "en": "5.1 MOTIVATION",
+      "bbox": [
+        251.8,
+        607.31,
+        386.89,
+        621.31
+      ]
+    },
+    {
+      "id": "p077b06",
+      "pdf_page": 77,
+      "book_page": "55",
+      "kind": "paragraph",
+      "en": "As we will soon see, mastering relaxed consistency models can be more challenging than understanding SC and TSO. These drawbacks beg the question: why bother with relaxed models at all? In this section, we motivate relaxed models, first by showing some common situations in which programmers do not care about instruction ordering (Section 5.1.1) and then by discussing a few of the optimizations that can be exploited when unnecessary orderings are not enforced (Section 5.1.2).",
+      "bbox": [
+        251.8,
+        630.61,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p078b01",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "5.1.1 OPPORTUNITIES TO REORDER MEMORY OPERATIONS Consider the example depicted in Table 5.1. Most programmers would expect that r2 will always get the value NEW because S1 is before S3 and S3 is before the dynamic instance of L1 that loads the value SET, which is before L2. We can denote this:",
+      "bbox": [
+        271.75,
+        174.57,
+        684.2,
+        229.48
+      ]
+    },
+    {
+      "id": "p078b02",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "• S1 S3 L1 loads SET L2. ! ! ! Similarly, most programmers would expect that r3 will always get the value NEW because:",
+      "bbox": [
+        287.97,
+        239.65,
+        684.2,
+        271.6
+      ]
+    },
+    {
+      "id": "p078b03",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "• S2 S3 L1 loads SET L3. ! ! ! In addition to these two expected orders above, SC and TSO also require the orders S1 ! S2 and L2 L3. Preserving these additional orders may limit implementation optimizations to ! aid performance, yet these additional orders are not needed by the program for correct operation.",
+      "bbox": [
+        271.75,
+        281.78,
+        684.21,
+        340.63
+      ]
+    },
+    {
+      "id": "p078b04",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "caption",
+      "en": "Table 5.2 depicts a more general case of the handoff between two critical sections using",
+      "bbox": [
+        298.65,
+        343.19,
+        684.2,
+        354.08
+      ]
+    },
+    {
+      "id": "p078b05",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "the same lock. Assume that hardware supports lock acquire (e.g., with test-and-set doing a readmodify-write and looping until it succeeds) and lock release (e.g., store the value 0). Let core C1 acquire the lock, do critical section 1 with an arbitrary interleaving of loads (L1i) and stores (S1j), and then release the lock. Similarly, let core C2 do critical section 2, including an arbitrary interleaving of loads (L2i) and stores (S2j).",
+      "bbox": [
+        271.75,
+        356.64,
+        684.21,
+        421.33
+      ]
+    },
+    {
+      "id": "p078b06",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "Proper operation of the handoff from critical section 1 to critical section 2 depends on the order of these operations:",
+      "bbox": [
+        271.75,
+        423.89,
+        684.2,
+        448.23
+      ]
+    },
+    {
+      "id": "p078b07",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "• All L1i, All S1j R1 A2 All L2i, All S2j, ! ! ! where commas (“,”) separate operations whose order is not specified.",
+      "bbox": [
+        271.75,
+        458.4,
+        569.82,
+        490.35
+      ]
+    },
+    {
+      "id": "p078b08",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "Proper operation does not depend on any ordering of the loads and stores within each critical section—unless the operations are to the same address (in which case ordering is required to maintain sequential processor ordering). That is:",
+      "bbox": [
+        271.75,
+        492.91,
+        684.21,
+        530.7
+      ]
+    },
+    {
+      "id": "p078b09",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "• All L1i and S1j can be in any order with respect to each other, and",
+      "bbox": [
+        287.97,
+        540.88,
+        586.84,
+        551.77
+      ]
+    },
+    {
+      "id": "p078b10",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "caption",
+      "en": "Table 5.1: What order ensures r2 and r3 always get NEW?",
+      "bbox": [
+        271.75,
+        572.86,
+        528.32,
+        583.75
+      ]
+    },
+    {
+      "id": "p078b11",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments",
+      "bbox": [
+        297.05,
+        597.54,
+        607.76,
+        608.04
+      ]
+    },
+    {
+      "id": "p078b12",
+      "pdf_page": 78,
+      "book_page": "56",
+      "kind": "paragraph",
+      "en": "S1: data1 = NEW; /* Initially, data1 and data2 = 0 & fl ag ≠ SET */ S2: data2 = NEW; S3: fl ag = SET; L1: r1 = fl ag /* spin loop: L1 & B1 may repeat many times */ B1: if (r1 ≠ SET) goto L1; L2: r2=data1; L3: r3=data2;",
+      "bbox": [
+        276.25,
+        615.9,
+        681.57,
+        701.4
+      ]
+    },
+    {
+      "id": "p079b01",
+      "pdf_page": 79,
+      "book_page": "57",
+      "kind": "caption",
+      "en": "Table 5.2: What order ensures correct handoff from critical section 1 to 2?",
+      "bbox": [
+        251.8,
+        175.76,
+        575.82,
+        186.65
+      ]
+    },
+    {
+      "id": "p079b02",
+      "pdf_page": 79,
+      "book_page": "57",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments A1: acquire(lock) /* Begin Critical Section 1 */ Some loads L1i interleaved /* Arbitrary interleaving of L1i’s & S1j’s */ with some stores S1j /* End Critical Section 1 */ /* Handoff from critical section 1 */ R1: release(lock) A2: acquire(lock) /* To critical section 2 */ /* Begin Critical Section 2 */ Some loads L2i interleaved /* Arbitrary interleaving of L2i’s & S2j’s */ with some stores S2j /* End Critical Section 2 */ R2: release(lock)",
+      "bbox": [
+        254.3,
+        200.61,
+        640.91,
+        375.94
+      ]
+    },
+    {
+      "id": "p079b03",
+      "pdf_page": 79,
+      "book_page": "57",
+      "kind": "paragraph",
+      "en": "• All L2i and S2j can be in any order with respect to each other.",
+      "bbox": [
+        268.02,
+        400.93,
+        548.02,
+        411.82
+      ]
+    },
+    {
+      "id": "p079b04",
+      "pdf_page": 79,
+      "book_page": "57",
+      "kind": "paragraph",
+      "en": "If proper operation does not depend on ordering among many loads and stores, perhaps one could obtain higher performance by relaxing the order among them, since loads and stores are typically much more frequent than lock acquires and releases. This is what relaxed or weak models do.",
+      "bbox": [
+        251.8,
+        423.22,
+        664.26,
+        474.46
+      ]
+    },
+    {
+      "id": "p079b05",
+      "pdf_page": 79,
+      "book_page": "57",
+      "kind": "paragraph",
+      "en": "5.1.2 OPPORTUNITIES TO EXPLOIT REORDERING Assume for now a relaxed memory consistency model that allows us to reorder any memory operations unless there is a FENCE between them. This relaxed model forces the programmer to reason about which operations need to be ordered, which is a drawback, but it also enables many optimizations that can improve performance. We discuss a few common and important optimizations, but a deep treatment of this topic is beyond the scope of this primer.",
+      "bbox": [
+        251.8,
+        491.47,
+        664.25,
+        573.27
+      ]
+    },
+    {
+      "id": "p079b06",
+      "pdf_page": 79,
+      "book_page": "57",
+      "kind": "paragraph",
+      "en": "Non-FIFO, Coalescing Write Buffer Recall that TSO enables the use of a FIFO write buffer, which improves performance by hiding some or all of the latency of committed stores. Although a FIFO write buffer improves performance, an even more optimized design would use a non-FIFO write buffer that permits coalescing of writes (i.e., two stores that are not consecutive in program order can write to the same entry in the write buffer). However, a non-FIFO coalescing write buffer normally violates TSO because TSO requires stores to appear in program order. Our example relaxed model allows stores to coalesce in a non-FIFO write buffer, so long as the stores have not been separated by a FENCE.",
+      "bbox": [
+        251.8,
+        590.04,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p080b01",
+      "pdf_page": 80,
+      "book_page": "58",
+      "kind": "paragraph",
+      "en": "Simpler Support for Core Speculation In systems with strong consistency models, a core may speculatively execute loads out of program order before they are ready to be committed. Recall how the MIPS R10000 core, which supports SC, used such speculation to gain better performance than a naive implementation that did not speculate. The catch, however, is that speculative cores that support SC typically have to include mechanisms to check whether the speculation is correct, even if mis-speculations are rare [15, 21]. The R10000 checks speculation by comparing the addresses of evicted cache blocks against a list of the addresses that the core has speculatively loaded but not yet committed (i.e., the contents of the core’s load queue). This mechanism adds to the cost and complexity of the hardware, it consumes additional power, and it represents another finite resource that may constrain instruction level parallelism. In a system with a relaxed memory consistency model, a core can execute loads out of program order without having to compare the addresses of these loads to the addresses of incoming coherence requests. These loads are not speculative with respect to the relaxed consistency model (although they may be speculative with respect to, say, a branch prediction or earlier stores by the same thread to the same address).",
+      "bbox": [
+        271.75,
+        175.1,
+        684.21,
+        374.5
+      ]
+    },
+    {
+      "id": "p080b02",
+      "pdf_page": 80,
+      "book_page": "58",
+      "kind": "paragraph",
+      "en": "Coupling Consistency and Coherence We previously advocated decoupling consistency and coherence to manage intellectual complexity. Alternatively, relaxed models can provide better performance than strong models by “opening the coherence box.” For example, an implementation might allow a subset of cores to load the new value from a store even as the rest of the cores can still load the old value, temporarily breaking coherence’s single-writer–multiple-reader invariant. This situation can occur, for example, when two thread contexts logically share a per-core write buffer or when two cores share an L1 data cache. However, “opening the coherence box” incurs considerable intellectual and verification complexity, bringing to mind the Greek myth about Pandora’s box. As we will discuss in Section 5.6.2, IBM Power permits the above optimizations. We will also explore in Chapter 10 why and how GPUs and heterogeneous processors typically open the coherence box while enforcing consistency. But first we explore relaxed models with the coherence box sealed tightly.",
+      "bbox": [
+        271.75,
+        396.74,
+        684.21,
+        569.24
+      ]
+    },
+    {
+      "id": "p080b03",
+      "pdf_page": 80,
+      "book_page": "58",
+      "kind": "heading",
+      "en": "5.2 AN EXAMPLE RELAXED CONSISTENCY MODEL (XC)",
+      "bbox": [
+        271.75,
+        592.81,
+        674.79,
+        606.81
+      ]
+    },
+    {
+      "id": "p080b04",
+      "pdf_page": 80,
+      "book_page": "58",
+      "kind": "paragraph",
+      "en": "For teaching purposes, this section introduces an eXample relaxed Consistency model (XC) that captures the basic idea and some implementation potential of relaxed memory consistency models. XC assumes that a global memory order exists, as is true for the strong models of SC and TSO, as well as the largely defunct relaxed models for Alpha [33] and SPARC Relaxed Memory Order (RMO) [34].",
+      "bbox": [
+        271.75,
+        620.87,
+        684.2,
+        685.56
+      ]
+    },
+    {
+      "id": "p081b01",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "5.2.1 THE BASIC IDEA OF THE XC MODEL XC provides a FENCE instruction so that programmers can indicate when order is needed; otherwise, by default, loads and stores are unordered. Other relaxed consistency models call a FENCE a barrier, a memory barrier, a membar, or a sync. Let core Ci execute some loads and/or stores, Xi, then a FENCE instruction, and then some more loads and/or stores, Yi. The FENCE ensures that memory order will order all Xi operations before the FENCE, which in turn is before all Yi operations. A FENCE instruction does not specify an address. Two FENCEs by the same core also stay ordered. However, a FENCE does not affect the order of memory operations at other cores (which is why “fence” may be a better name than “barrier”). Some architectures include multiple FENCE instructions with different ordering properties; for example, an architecture could include a FENCE instruction that enforces all orders except from a store to a subsequent load. In this chapter, however, we consider only FENCEs that order all types of operations.",
+      "bbox": [
+        251.8,
+        174.57,
+        664.26,
+        350.52
+      ]
+    },
+    {
+      "id": "p081b02",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "XC’s memory order is guaranteed to respect (preserve) program order for:",
+      "bbox": [
+        278.7,
+        353.08,
+        599.53,
+        363.97
+      ]
+    },
+    {
+      "id": "p081b03",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• Load FENCE !",
+      "bbox": [
+        268.02,
+        375.94,
+        354.38,
+        393.92
+      ]
+    },
+    {
+      "id": "p081b04",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• Store FENCE !",
+      "bbox": [
+        268.02,
+        400.23,
+        354.48,
+        418.21
+      ]
+    },
+    {
+      "id": "p081b05",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• FENCE FENCE !",
+      "bbox": [
+        268.02,
+        424.52,
+        369.26,
+        442.51
+      ]
+    },
+    {
+      "id": "p081b06",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• FENCE Load !",
+      "bbox": [
+        268.02,
+        448.81,
+        354.38,
+        466.8
+      ]
+    },
+    {
+      "id": "p081b07",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• FENCE Store ! XC maintains TSO rules for ordering two accesses to the same address only:",
+      "bbox": [
+        268.02,
+        473.11,
+        610.74,
+        506.85
+      ]
+    },
+    {
+      "id": "p081b08",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• Load Load to same address !",
+      "bbox": [
+        268.02,
+        518.82,
+        410.59,
+        536.8
+      ]
+    },
+    {
+      "id": "p081b09",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• Load Store to the same address !",
+      "bbox": [
+        268.02,
+        543.11,
+        427.44,
+        561.09
+      ]
+    },
+    {
+      "id": "p081b10",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "• Store Store to the same address ! These rules enforce the sequential processor model (i.e., sequential core semantics) and prohibit behaviors that might astonish programmers. For example, the Store Store rule pre- ! vents a critical section that performs “A = 1” then “A = 2” from completing strangely with A set to 1. Likewise, the Load Load rule ensures that if B was initially 0 and another thread ! performs “B = 1,” then the present thread cannot perform “r1 = B” then “r2 = B” with r1 getting 1 and r2 getting 0, as if B’s value went from new to old.",
+      "bbox": [
+        251.8,
+        567.4,
+        664.26,
+        668.39
+      ]
+    },
+    {
+      "id": "p081b11",
+      "pdf_page": 81,
+      "book_page": "59",
+      "kind": "paragraph",
+      "en": "XC ensures that loads immediately see updates due to their own stores (like TSO’s write buffer bypassing). This rule preserves the sequentiality of single threads, also to avoid programmer astonishment.",
+      "bbox": [
+        251.8,
+        670.95,
+        664.25,
+        708.74
+      ]
+    },
+    {
+      "id": "p082b01",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "5.2.2 EXAMPLES USING FENCES UNDER XC",
+      "bbox": [
+        271.75,
+        174.43,
+        525.76,
+        185.84
+      ]
+    },
+    {
+      "id": "p082b02",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "caption",
+      "en": "Table 5.3 shows how programmers or low-level software should insert FENCEs in the program",
+      "bbox": [
+        271.75,
+        191.55,
+        684.2,
+        202.44
+      ]
+    },
+    {
+      "id": "p082b03",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "of Table 5.1 so that it operates correctly under XC. These FENCEs ensure:",
+      "bbox": [
+        271.75,
+        205.0,
+        599.64,
+        215.89
+      ]
+    },
+    {
+      "id": "p082b04",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "• S1, S2 F1 S3 L1 loads SET F2 L2, L3. ! ! ! ! ! The F1 FENCE, which orders stores, makes sense to most readers, but some are surprised by the need for the F2 FENCE ordering loads. However, if one allows the loads to execute out of order, they can make it look like in-order stores executed out of order. For example, if execution can proceed as L2, S1, S2, S3, L1, and L3, then L2 can obtain the value 0. This result is especially possible for a program that does not include the B1 control dependence, so that L1 and L2 are consecutive loads to different addresses, wherein reordering seems reasonable, but is not.",
+      "bbox": [
+        271.75,
+        227.96,
+        684.21,
+        329.06
+      ]
+    },
+    {
+      "id": "p082b05",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "caption",
+      "en": "Table 5.3: Adding FENCEs for XC to Table 5.1’s program",
+      "bbox": [
+        271.75,
+        344.05,
+        529.85,
+        354.94
+      ]
+    },
+    {
+      "id": "p082b06",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments S1: data1 = NEW; /* Initially, data1 & data2 = 0 & fl ag ≠ SET */ S2: data2 = NEW; F1: FENCE",
+      "bbox": [
+        274.25,
+        368.84,
+        669.66,
+        421.93
+      ]
+    },
+    {
+      "id": "p082b07",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "S3: fl ag = SET; L1: r1 = fl ag; /* L1 & B1 may repeat many times */ B1: if (r1≠ SET) goto L1; F2: FENCE",
+      "bbox": [
+        274.25,
+        430.19,
+        640.13,
+        466.93
+      ]
+    },
+    {
+      "id": "p082b08",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "L2: r2 = data1; L3: r3 = data2;",
+      "bbox": [
+        385.25,
+        474.08,
+        448.39,
+        499.58
+      ]
+    },
+    {
+      "id": "p082b09",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "caption",
+      "en": "Table 5.4 shows how programmers or low-level software could insert FENCEs in the",
+      "bbox": [
+        298.65,
+        520.03,
+        684.2,
+        530.92
+      ]
+    },
+    {
+      "id": "p082b10",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "critical section program of Table 5.2 so that it operates correctly under XC. This FENCE insertion policy, in which FENCEs surround each lock acquire and lock release, is conservative for illustration purposes; we will later show that some of these FENCEs can be removed. In particular, FENCEs F13 and F22 ensure a correct handoff between critical sections because:",
+      "bbox": [
+        271.75,
+        533.48,
+        684.21,
+        584.72
+      ]
+    },
+    {
+      "id": "p082b11",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "• All L1i, All S1j F13 R11 A21 F22 All L2i, All S2j ! ! ! ! ! Next, we formalize XC and then show why the above two examples work.",
+      "bbox": [
+        287.97,
+        596.79,
+        618.92,
+        626.66
+      ]
+    },
+    {
+      "id": "p082b12",
+      "pdf_page": 82,
+      "book_page": "60",
+      "kind": "paragraph",
+      "en": "5.2.3 FORMALIZING XC Here, we formalize XC in a manner consistent with the previous two chapters’ notation and approach. Once again, let L(a) and S(a) represent a load and a store, respectively, to address a. Orders <p and <m define per-processor program order and global memory order, respectively.",
+      "bbox": [
+        271.75,
+        653.84,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p083b01",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "caption",
+      "en": "Table 5.4: Adding FENCEs for XC to Table 5.2’s critical section program. (Note that not all",
+      "bbox": [
+        251.8,
+        175.76,
+        664.25,
+        186.65
+      ]
+    },
+    {
+      "id": "p083b02",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "FENCES are strictly necessary for correctness.)",
+      "bbox": [
+        251.8,
+        189.21,
+        459.8,
+        200.1
+      ]
+    },
+    {
+      "id": "p083b03",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments F11: FENCE",
+      "bbox": [
+        254.3,
+        214.05,
+        597.3,
+        237.13
+      ]
+    },
+    {
+      "id": "p083b04",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "A11: acquire(lock) F12: FENCE",
+      "bbox": [
+        254.3,
+        245.39,
+        319.8,
+        267.13
+      ]
+    },
+    {
+      "id": "p083b05",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "Some loads L1i interleaved /* Arbitrary interleaving of L1i’s & S1j’s */ with some stores S1j F13: FENCE R11: release(lock) F21: FENCE /* Handoff from critical section 1 */ F14: FENCE A21: acquire(lock) /* To critical section 2 */ F22: FENCE",
+      "bbox": [
+        254.3,
+        275.39,
+        632.95,
+        357.13
+      ]
+    },
+    {
+      "id": "p083b06",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "Some loads L2i interleaved /* Arbitrary interleaving of L2i’s & S2j’s */ with some stores S2j F23: FENCE",
+      "bbox": [
+        365.3,
+        364.3,
+        662.68,
+        402.13
+      ]
+    },
+    {
+      "id": "p083b07",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "R22: release(lock) F24: FENCE",
+      "bbox": [
+        365.3,
+        410.39,
+        429.82,
+        432.13
+      ]
+    },
+    {
+      "id": "p083b08",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "Program order <p is a per-processor total order that captures the order in which each core logically (sequentially) executes memory operations. Global memory order <m is a total order on the memory operations of all cores.",
+      "bbox": [
+        251.8,
+        459.12,
+        664.26,
+        496.91
+      ]
+    },
+    {
+      "id": "p083b09",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "More formally, an XC execution requires the following.",
+      "bbox": [
+        278.7,
+        499.47,
+        522.36,
+        510.36
+      ]
+    },
+    {
+      "id": "p083b10",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "1. All cores insert their loads, stores, and FENCEs into the order <m respecting:",
+      "bbox": [
+        263.51,
+        521.52,
+        617.55,
+        532.41
+      ]
+    },
+    {
+      "id": "p083b11",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If L(a) <p FENCE L(a) <m FENCE /* Load FENCE */ ) !",
+      "bbox": [
+        289.94,
+        544.18,
+        620.83,
+        562.16
+      ]
+    },
+    {
+      "id": "p083b12",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If S(a) <p FENCE S(a) <m FENCE /* Store FENCE */ ) !",
+      "bbox": [
+        289.94,
+        562.24,
+        618.44,
+        580.22
+      ]
+    },
+    {
+      "id": "p083b13",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If FENCE <p FENCE FENCE <m FENCE /* FENCE FENCE */ ) !",
+      "bbox": [
+        289.94,
+        580.3,
+        632.74,
+        598.28
+      ]
+    },
+    {
+      "id": "p083b14",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If FENCE <p L(a) FENCE <m L(a) /* FENCE Load */ ) !",
+      "bbox": [
+        289.94,
+        598.35,
+        618.24,
+        616.34
+      ]
+    },
+    {
+      "id": "p083b15",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If FENCE <p S(a) FENCE <m S(a) /* FENCE Store */ ) !",
+      "bbox": [
+        289.94,
+        616.41,
+        615.85,
+        634.39
+      ]
+    },
+    {
+      "id": "p083b16",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "2. All cores insert their loads and stores to the same address into the order <m respecting:",
+      "bbox": [
+        263.51,
+        639.07,
+        653.28,
+        649.96
+      ]
+    },
+    {
+      "id": "p083b17",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If L(a) <p L’(a) L(a) <m L’ (a) /* Load Load to same address */ ) !",
+      "bbox": [
+        289.94,
+        661.74,
+        621.79,
+        679.72
+      ]
+    },
+    {
+      "id": "p083b18",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If L(a) <p S(a) L(a) <m S(a) /* Load Store to same address */ ) !",
+      "bbox": [
+        289.94,
+        679.8,
+        620.22,
+        697.78
+      ]
+    },
+    {
+      "id": "p083b19",
+      "pdf_page": 83,
+      "book_page": "61",
+      "kind": "paragraph",
+      "en": "• If S(a) <p S’(a) S(a) <m S’ (a) /* Store Store to same address */ ) !",
+      "bbox": [
+        289.94,
+        697.85,
+        621.96,
+        715.84
+      ]
+    },
+    {
+      "id": "p084b01",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "3. Every load gets its value from the last store before it to the same address:",
+      "bbox": [
+        283.46,
+        174.72,
+        614.01,
+        185.61
+      ]
+    },
+    {
+      "id": "p084b02",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "Value of L(a) = Value of MAX {S(a) | S(a) <m L(a) or S(a) <p L(a)} /* Like TSO */ <m",
+      "bbox": [
+        296.65,
+        194.43,
+        674.18,
+        206.02
+      ]
+    },
+    {
+      "id": "p084b03",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "We summarize these ordering rules in Table 5.5. This table differs considerably from the analogous tables for SC and TSO. Visually, the table shows that ordering is enforced only for operations to the same address or if FENCEs are used. Like TSO, if operation 1 is “store C” and operation 2 is “load C,” the store can enter the global order after the load, but the load must already see the newly stored value.",
+      "bbox": [
+        271.75,
+        218.12,
+        684.21,
+        282.81
+      ]
+    },
+    {
+      "id": "p084b04",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "An implementation that allows only XC executions is an XC implementation.",
+      "bbox": [
+        298.65,
+        285.37,
+        642.26,
+        296.26
+      ]
+    },
+    {
+      "id": "p084b05",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "caption",
+      "en": "Table 5.5: XC ordering rules. An “X” denotes an enforced ordering. A “B” denotes that bypassing",
+      "bbox": [
+        271.75,
+        312.01,
+        684.2,
+        322.9
+      ]
+    },
+    {
+      "id": "p084b06",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "is required if the operations are to the same address. An “A” denotes an ordering that is enforced only if the operations are to the same address. Entries different from TSO are shaded and shown in bold.",
+      "bbox": [
+        271.75,
+        325.46,
+        684.21,
+        363.25
+      ]
+    },
+    {
+      "id": "p084b07",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "Operation 2",
+      "bbox": [
+        462.55,
+        379.78,
+        516.41,
+        390.28
+      ]
+    },
+    {
+      "id": "p084b08",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "1 noitarepO Load Store RMW FENCE Load A A A X Store B A A X RMW A A A X FENCE X X X X",
+      "bbox": [
+        354.69,
+        392.86,
+        602.82,
+        466.22
+      ]
+    },
+    {
+      "id": "p084b09",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "5.2.4 EXAMPLES SHOWING XC OPERATING CORRECTLY With the formalisms of the last section, we can now reveal why Section 5.2.2’s two examples work correctly. Figure 5.1a shows an XC execution of the example from Table 5.3 in which core C1’s stores S1 and S2 are reordered, as are core C2’s loads L2 and L3. Neither reordering, however, affects the results of the program. Thus, as far as the programmer can tell, this XC execution is equivalent to the SC execution depicted in Figure 5.1b, in which the two pairs of operations are not reordered.",
+      "bbox": [
+        271.75,
+        505.89,
+        684.21,
+        601.15
+      ]
+    },
+    {
+      "id": "p084b10",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "Similarly, Figure 5.2a depicts an execution of the critical section example from Table 5.4 in which core C1’s loads L1i and stores S1j are reordered with respect to each other, as are core C2’s L2i and stores S2j. Once again, these reorderings do not affect the results of the program. Thus, as far as the programmer can tell, this XC execution is equivalent to the SC execution depicted in Figure 5.2b, in which no loads or stores are reordered.",
+      "bbox": [
+        271.75,
+        603.71,
+        684.21,
+        668.39
+      ]
+    },
+    {
+      "id": "p084b11",
+      "pdf_page": 84,
+      "book_page": "62",
+      "kind": "paragraph",
+      "en": "These examples demonstrate that, with sufficient FENCEs, a relaxed model like XC can appear to programmers as SC. Section 5.4 discusses generalizing from these examples, but first let us implement XC.",
+      "bbox": [
+        271.75,
+        670.95,
+        684.2,
+        708.74
+      ]
+    },
+    {
+      "id": "p085b01",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "Program Order (<p) of Core C1 Memory Order (<m) Program Order (<p) of Core C2",
+      "bbox": [
+        261.52,
+        188.64,
+        654.15,
+        198.64
+      ]
+    },
+    {
+      "id": "p085b02",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "S1: data1 = NEW; /* NEW */ L1: r1 = flag; /* 0 */",
+      "bbox": [
+        308.74,
+        234.27,
+        580.96,
+        249.94
+      ]
+    },
+    {
+      "id": "p085b03",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "S2: data2 = NEW; /* NEW */ L1: r1 = flag; /* 0 */ F1: FENCE L1: r1 = flag; /* 0 */ S3: flag = SET; /* SET */ L1: r1 = flag; /* SET */ F1: FENCE",
+      "bbox": [
+        308.74,
+        259.28,
+        595.31,
+        337.68
+      ]
+    },
+    {
+      "id": "p085b04",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "L2: r2 = data1; /* NEW */",
+      "bbox": [
+        503.08,
+        346.27,
+        608.38,
+        356.27
+      ]
+    },
+    {
+      "id": "p085b05",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "L3: r3 = data2; /* NEW */",
+      "bbox": [
+        503.08,
+        367.6,
+        608.38,
+        377.6
+      ]
+    },
+    {
+      "id": "p085b06",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "(a) An XC Execution",
+      "bbox": [
+        433.12,
+        398.98,
+        519.27,
+        408.98
+      ]
+    },
+    {
+      "id": "p085b07",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "Program Order (<p) of Core C1 Memory Order (<m) Program Order (<p) of Core C2",
+      "bbox": [
+        261.52,
+        446.64,
+        654.15,
+        456.64
+      ]
+    },
+    {
+      "id": "p085b08",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "S1: data1 = NEW; /* NEW */ L1: r1 = flag; /* 0 */ S2: data2 = NEW; /* NEW */ L1: r1 = flag; /* 0 */ F1: FENCE L1: r1 = flag; /* 0 */ S3: flag = SET; /* SET */ L1: r1 = flag; /* SET */",
+      "bbox": [
+        308.74,
+        482.27,
+        595.31,
+        564.27
+      ]
+    },
+    {
+      "id": "p085b09",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "F1: FENCE",
+      "bbox": [
+        503.08,
+        576.35,
+        554.53,
+        586.35
+      ]
+    },
+    {
+      "id": "p085b10",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "L2: r2 = data1; /* NEW */",
+      "bbox": [
+        503.08,
+        594.27,
+        608.38,
+        604.27
+      ]
+    },
+    {
+      "id": "p085b11",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "L3: r3 = data2; /* NEW */",
+      "bbox": [
+        503.08,
+        614.27,
+        608.38,
+        624.27
+      ]
+    },
+    {
+      "id": "p085b12",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "paragraph",
+      "en": "(b) An SC Execution",
+      "bbox": [
+        433.12,
+        655.65,
+        518.79,
+        665.65
+      ]
+    },
+    {
+      "id": "p085b13",
+      "pdf_page": 85,
+      "book_page": "63",
+      "kind": "caption",
+      "en": "Figure 5.1: Two equivalent executions of Table 5.3’s program.",
+      "bbox": [
+        251.8,
+        681.27,
+        519.75,
+        692.16
+      ]
+    },
+    {
+      "id": "p086b01",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "Program Order (<p) of Core C1 Memory Order (<m) Program Order (<p) of Core C2 F11: FENCE A11: acquire(lock) F12: FENCE",
+      "bbox": [
+        281.48,
+        184.6,
+        674.1,
+        239.67
+      ]
+    },
+    {
+      "id": "p086b02",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "Some loads L1i & stores S1j",
+      "bbox": [
+        309.34,
+        255.25,
+        423.79,
+        265.25
+      ]
+    },
+    {
+      "id": "p086b03",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "F13: FENCE F21: FENCE R11: release(lock) A21: acquire(lock) F14: FENCE F22: FENCE",
+      "bbox": [
+        309.34,
+        274.66,
+        619.28,
+        322.99
+      ]
+    },
+    {
+      "id": "p086b04",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "Some loads L12i & stores S2j F23: FENCE R22: release(lock) F24: FENCE (a) An XC Execution",
+      "bbox": [
+        453.07,
+        340.37,
+        646.4,
+        410.9
+      ]
+    },
+    {
+      "id": "p086b05",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "Program Order (<p) of Core C1 Memory Order (<m) Program Order (<p) of Core C2 F11: FENCE A11: acquire(lock) F12: FENCE",
+      "bbox": [
+        281.48,
+        426.59,
+        674.1,
+        480.37
+      ]
+    },
+    {
+      "id": "p086b06",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "Some loads L1i & stores S1j",
+      "bbox": [
+        309.34,
+        497.27,
+        423.79,
+        507.27
+      ]
+    },
+    {
+      "id": "p086b07",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "F13: FENCE F21: FENCE R11: release(lock) A21: acquire(lock) F14: FENCE F22: FENCE",
+      "bbox": [
+        309.34,
+        514.7,
+        619.28,
+        562.39
+      ]
+    },
+    {
+      "id": "p086b08",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "Some loads L12i & stores S2j F23: FENCE R22: release(lock) F24: FENCE",
+      "bbox": [
+        526.95,
+        583.09,
+        646.4,
+        634.08
+      ]
+    },
+    {
+      "id": "p086b09",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "paragraph",
+      "en": "(b) An SC Execution",
+      "bbox": [
+        453.07,
+        659.62,
+        538.74,
+        669.62
+      ]
+    },
+    {
+      "id": "p086b10",
+      "pdf_page": 86,
+      "book_page": "64",
+      "kind": "caption",
+      "en": "Figure 5.2: Two equivalent executions of Table 5.4’s critical section program.",
+      "bbox": [
+        271.75,
+        685.27,
+        605.39,
+        696.16
+      ]
+    },
+    {
+      "id": "p087b01",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "heading",
+      "en": "5.3 IMPLEMENTING XC",
+      "bbox": [
+        251.8,
+        174.62,
+        431.83,
+        188.62
+      ]
+    },
+    {
+      "id": "p087b02",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "This section discusses implementing XC. We follow an approach similar to that used for implementing SC and TSO in the previous two chapters, in which we separate the reordering of core operations from cache coherence. Recall that each core in a TSO system was separated from shared memory by a FIFO write buffer. For XC, each core will be separated from memory by a more general reorder unit that can reorder both loads and stores.",
+      "bbox": [
+        251.8,
+        195.85,
+        664.26,
+        260.53
+      ]
+    },
+    {
+      "id": "p087b03",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "As depicted by Figure 5.3a, XC operates as follows.",
+      "bbox": [
+        278.7,
+        263.09,
+        503.1,
+        273.98
+      ]
+    },
+    {
+      "id": "p087b04",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "• Loads, stores, and FENCEs leave each core Ci in Ci’s program order <p and enter the tail of Ci’s reorder unit.",
+      "bbox": [
+        268.02,
+        283.54,
+        664.25,
+        307.88
+      ]
+    },
+    {
+      "id": "p087b05",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "• Ci’s reorder unit queues operations and passes them from its tail to its head, either in program order or reordered within by rules specified below. A FENCE gets discarded when it reaches the reorder unit’s head.",
+      "bbox": [
+        268.02,
+        317.44,
+        664.26,
+        355.23
+      ]
+    },
+    {
+      "id": "p087b06",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "… C1 C2 Cn This XC implementation is modeled after reorder reorder reorder the SC and TSO switch implementations of the previous chapter, except that a more- Switch general reorder unit separates cores and the memory switch.",
+      "bbox": [
+        282.42,
+        375.25,
+        638.87,
+        455.83
+      ]
+    },
+    {
+      "id": "p087b07",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "Memory",
+      "bbox": [
+        336.11,
+        471.48,
+        371.34,
+        481.48
+      ]
+    },
+    {
+      "id": "p087b08",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "(a) An XC implementation using a switch",
+      "bbox": [
+        364.05,
+        499.14,
+        532.51,
+        509.14
+      ]
+    },
+    {
+      "id": "p087b09",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "… C1 C2 Cn This XC implementation replaces the reorder reorder reorder switch above with a cache-coherent memory system in a manner analogous to what was done for SC and TSO in Cache-Coherent the previous chapters. Memory System",
+      "bbox": [
+        282.42,
+        523.18,
+        622.76,
+        612.39
+      ]
+    },
+    {
+      "id": "p087b10",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "paragraph",
+      "en": "(b) An XC implementation using cache coherence",
+      "bbox": [
+        347.62,
+        656.73,
+        548.94,
+        666.73
+      ]
+    },
+    {
+      "id": "p087b11",
+      "pdf_page": 87,
+      "book_page": "65",
+      "kind": "caption",
+      "en": "Figure 5.3: Two XC implementations.",
+      "bbox": [
+        251.8,
+        682.35,
+        418.43,
+        693.24
+      ]
+    },
+    {
+      "id": "p088b01",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "• When the switch selects core Ci, it performs the load or store at the head of Ci’s reorder unit.",
+      "bbox": [
+        287.97,
+        174.72,
+        684.21,
+        199.05
+      ]
+    },
+    {
+      "id": "p088b02",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "The reorder units obey rules for (1) FENCEs, (2) operations to the same address, and (3) bypassing.",
+      "bbox": [
+        271.75,
+        209.08,
+        684.2,
+        233.42
+      ]
+    },
+    {
+      "id": "p088b03",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "1. FENCEs can be implemented in several different ways (see Section 5.3.2), but they must enforce order. Specifically, regardless of address, the reorder unit may not reorder: Load FENCE, Store FENCE, FENCE FENCE, FENCE Load, or ! ! ! ! FENCE Store !",
+      "bbox": [
+        283.46,
+        243.44,
+        684.21,
+        305.63
+      ]
+    },
+    {
+      "id": "p088b04",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "2. For the same address, the reorder unit may not reorder:",
+      "bbox": [
+        283.46,
+        308.56,
+        534.79,
+        319.45
+      ]
+    },
+    {
+      "id": "p088b05",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "Load Load, Load Store, Store Store (to the same address) ! ! !",
+      "bbox": [
+        298.65,
+        329.48,
+        593.32,
+        347.46
+      ]
+    },
+    {
+      "id": "p088b06",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "3. The reorder unit must ensure that loads immediately see updates due to their own stores.",
+      "bbox": [
+        283.46,
+        350.39,
+        682.54,
+        361.28
+      ]
+    },
+    {
+      "id": "p088b07",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "Not surprisingly, all of these rules mirror those of Section 5.2.3. In the previous two chapters, we argued that the switch and memory in SC and TSO implementations could be replaced by a cache-coherent memory system. The same argument holds for XC, as illustrated by Figure 5.3b. Thus, as for SC and TSO, an XC implementation can separate core (re)ordering rules from the implementation of cache coherence. As before, cache coherence implements the global memory order. What is new is that memory order can more often disrespect program order due to reorder unit reorderings.",
+      "bbox": [
+        271.75,
+        371.3,
+        684.21,
+        462.89
+      ]
+    },
+    {
+      "id": "p088b08",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "So how much performance does moving from TSO to a relaxed model like XC afford? Unfortunately, the correct answer depends on the factors discussed in Section 5.1.2, such as FIFO vs. coalescing write buffers and speculation support.",
+      "bbox": [
+        271.75,
+        465.45,
+        684.21,
+        503.24
+      ]
+    },
+    {
+      "id": "p088b09",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "In the late 1990s, one of us saw the trend toward speculative cores as diminishing the raison d’être for relaxed models (better performance) and argued for a return to the simpler interfaces of SC or TSO [22]. Although we still believe that simple interfaces are good, the move did not happen. One reason is corporate momentum. Another reason is that not all future cores will be highly speculative due to power-limited deployments in embedded chips and/or chips with many (asymmetric) cores.",
+      "bbox": [
+        271.75,
+        505.8,
+        684.21,
+        583.94
+      ]
+    },
+    {
+      "id": "p088b10",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "5.3.1 ATOMIC INSTRUCTIONS WITH XC There are several viable ways of implementing an atomic RMW instruction in a system that supports XC. The implementation of RMWs also depends on how the system implements XC; in this section, we assume that the XC system consists of dynamically scheduled cores, each of which is connected to the memory system by a non-FIFO coalescing write buffer.",
+      "bbox": [
+        271.75,
+        600.04,
+        684.21,
+        668.39
+      ]
+    },
+    {
+      "id": "p088b11",
+      "pdf_page": 88,
+      "book_page": "66",
+      "kind": "paragraph",
+      "en": "In this XC system model, a simple and viable solution would be to borrow the implementation we used for TSO. Before executing an atomic instruction, the core drains the write buffer, obtains the block with read-write coherence permissions, and then performs the load part",
+      "bbox": [
+        271.75,
+        670.95,
+        684.2,
+        708.74
+      ]
+    },
+    {
+      "id": "p089b01",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "paragraph",
+      "en": "and the store part. Because the block is in a read-write state, the store part performs directly to the cache, bypassing the write buffer. Between when the load part performs and the store part performs, if such a window exists, the cache controller must not evict the block; if an incoming coherence request arrives, it must be deferred until the store part of the RMW performs.",
+      "bbox": [
+        251.8,
+        174.72,
+        664.26,
+        225.95
+      ]
+    },
+    {
+      "id": "p089b02",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "paragraph",
+      "en": "Borrowing the TSO solution for implementing RMWs is simple, but it is overly conservative and sacrifices some performance. Notably, draining the write buffer is not required because XC allows both the load part and the store part of the RMW to pass earlier stores. Thus, it is sufficient to simply obtain read-write coherence permissions to the block and then perform the load part and the store part without relinquishing the block between those two operations.",
+      "bbox": [
+        251.8,
+        228.51,
+        664.25,
+        293.2
+      ]
+    },
+    {
+      "id": "p089b03",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "paragraph",
+      "en": "Other implementations of atomic RMWs are possible, but they are beyond the scope of this primer. One important difference between XC and TSO is how atomic RMWs are used to achieve synchronization. In Table 5.6, we depict a typical critical section, including lock acquire and lock release, for both TSO and XC. With TSO, the atomic RMW is used to attempt to acquire the lock, and a store is used to release the lock. With XC, the situation is more complicated. For the acquire, XC does not, by default, constrain the RMW from being reordered with respect to the operations in the critical section. To avoid this situation, a lock acquire must be followed by a FENCE. Similarly, the lock release is not, by default, constrained from being reordered with respect to the operations before it in the critical section. To avoid this situation, a lock release must be preceded by a FENCE.",
+      "bbox": [
+        251.8,
+        295.76,
+        664.26,
+        427.7
+      ]
+    },
+    {
+      "id": "p089b04",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "caption",
+      "en": "Table 5.6: Synchronization in TSO vs. synchronization in XC",
+      "bbox": [
+        251.8,
+        453.07,
+        522.99,
+        463.96
+      ]
+    },
+    {
+      "id": "p089b05",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "paragraph",
+      "en": "Code TSO XC",
+      "bbox": [
+        254.3,
+        477.69,
+        496.95,
+        488.19
+      ]
+    },
+    {
+      "id": "p089b06",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "paragraph",
+      "en": "Acquire RMW: test-and-set L / * read L, write L=1 */ RMW: test-and-set L / * read L, write L=1 */ lock if L==1, goto RMW /* if lock held, try again */ if L==1, goto RMW /* if lock held, try again */ FENCE",
+      "bbox": [
+        254.3,
+        495.99,
+        661.43,
+        533.51
+      ]
+    },
+    {
+      "id": "p089b07",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "paragraph",
+      "en": "Critical Loads and stores Loads and stores Section Release Store L=0 FENCE lock Store L=0",
+      "bbox": [
+        254.3,
+        541.36,
+        550.75,
+        597.58
+      ]
+    },
+    {
+      "id": "p089b08",
+      "pdf_page": 89,
+      "book_page": "67",
+      "kind": "paragraph",
+      "en": "5.3.2 FENCES WITH XC If a core C1 executes some memory operations Xi, then a FENCE, and then memory operations Yi, the XC implementation must preserve order. Specifically, the XC implementation must order Xi <m FENCE <m Yi. We see three basic approaches:",
+      "bbox": [
+        251.8,
+        653.84,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p090b01",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "paragraph",
+      "en": "• An implementation can implement SC and treat all FENCEs as no-ops. This is not done (yet) in a commercial product, but there have been academic proposals, e.g., via implicit transactional memory [16].",
+      "bbox": [
+        287.97,
+        174.72,
+        684.21,
+        212.5
+      ]
+    },
+    {
+      "id": "p090b02",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "paragraph",
+      "en": "• An implementation can wait for all memory operations Xi to perform, consider the FENCE done, and then begin memory operations Yi. This “FENCE as drain” method is common, but it makes FENCEs costly.",
+      "bbox": [
+        287.97,
+        226.35,
+        684.2,
+        264.14
+      ]
+    },
+    {
+      "id": "p090b03",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "paragraph",
+      "en": "• An implementation can aggressively push toward what is necessary, enforcing Xi <m FENCE <m Yi, without draining. Exactly how one would do this is beyond the scope of this primer. While this approach may be more complex to design and verify, it can lead to better performance than draining.",
+      "bbox": [
+        287.97,
+        277.98,
+        684.21,
+        329.22
+      ]
+    },
+    {
+      "id": "p090b04",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "paragraph",
+      "en": "In all cases, a FENCE implementation must know when each operation Xi is done (or at least ordered). Knowing when an operation is done can be especially tricky for a store that bypasses the usual cache coherence (e.g., a store to an I/O device or one using some fancy write update optimization).",
+      "bbox": [
+        271.75,
+        341.4,
+        684.2,
+        392.64
+      ]
+    },
+    {
+      "id": "p090b05",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "paragraph",
+      "en": "5.3.3 A CAVEAT Finally, an XC implementor might say, “I’m implementing a relaxed model, so anything goes.” This is not true. One must obey the many XC rules, e.g., Load Load order to the same address ! (this particular ordering is actually non-trivial to enforce in an out-of-order core). Moreover, all XC implementations must be strong enough to provide SC for programs that have FENCEs between each pair of instructions because these FENCEs require memory order to respect all of the program order.",
+      "bbox": [
+        271.75,
+        410.42,
+        684.21,
+        505.68
+      ]
+    },
+    {
+      "id": "p090b06",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "heading",
+      "en": "5.4 SEQUENTIAL CONSISTENCY FOR DATA-RACE-FREE PROGRAMS",
+      "bbox": [
+        271.75,
+        524.55,
+        679.02,
+        553.99
+      ]
+    },
+    {
+      "id": "p090b07",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "paragraph",
+      "en": "Children and computer architects would like “to have their cake and eat it too.” For memory consistency models, this can mean enabling programmers to reason with the (relatively) intuitive model of SC while still achieving the performance benefits of executing on a relaxed model like XC.",
+      "bbox": [
+        271.75,
+        563.36,
+        684.21,
+        614.6
+      ]
+    },
+    {
+      "id": "p090b08",
+      "pdf_page": 90,
+      "book_page": "68",
+      "kind": "paragraph",
+      "en": "Fortunately, simultaneously achieving both goals is possible for the important class of data-race-free (DRF) programs [3]. Informally, a data race occurs when two threads access the same memory location, at least one of the accesses is a write, and there are no intervening synchronization operations. Data races are often, but not always, the result of programming errors and many programmers seek to write DRF programs. SC for DRF programming asks programmers to ensure programs are DRF under SC by writing correctly synchronized programs and labeling the synchronization operations; it then asks implementors to ensure that all executions",
+      "bbox": [
+        271.75,
+        617.16,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p091b01",
+      "pdf_page": 91,
+      "book_page": "69",
+      "kind": "paragraph",
+      "en": "of DRF programs on the relaxed model are also SC executions by mapping the labeled synchronization operations to FENCEs and RMWs supported by the relaxed memory model. XC and most commercial relaxed memory models have the necessary FENCE instructions and RMWs to recover SC. Moreover, this approach also serves as a foundation for Java and C high-level CC language (HLL) memory models (Section 5.9).",
+      "bbox": [
+        251.8,
+        174.72,
+        664.26,
+        239.4
+      ]
+    },
+    {
+      "id": "p091b02",
+      "pdf_page": 91,
+      "book_page": "69",
+      "kind": "caption",
+      "en": "Table 5.7: Example with four outcomes for XC with a data race",
+      "bbox": [
+        251.8,
+        258.07,
+        529.35,
+        268.96
+      ]
+    },
+    {
+      "id": "p091b03",
+      "pdf_page": 91,
+      "book_page": "69",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments F11: FENCE /* Initially, data1 & data2 = 0 */ A11: acquire(lock) F12: FENCE S1: data1 = NEW; L1: r2 = data2; S2: data2 = NEW; L2: r1 = data1; /* Four Possible Outcomes under XC: F13: FENCE (r1, r2) = R11: release(lock) (0, 0), (0, NEW), (NEW, 0), or (NEW, NEW) F14: FENCE But has a Data Race */",
+      "bbox": [
+        254.3,
+        282.75,
+        641.87,
+        414.58
+      ]
+    },
+    {
+      "id": "p091b04",
+      "pdf_page": 91,
+      "book_page": "69",
+      "kind": "caption",
+      "en": "Table 5.8: Example with two outcomes for XC without a data race, just like SC",
+      "bbox": [
+        251.8,
+        454.86,
+        598.37,
+        465.75
+      ]
+    },
+    {
+      "id": "p091b05",
+      "pdf_page": 91,
+      "book_page": "69",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments F11: FENCE /* Initially, data1 & data2 = 0 */ A11: acquire(lock) F12: FENCE",
+      "bbox": [
+        254.3,
+        479.54,
+        612.94,
+        533.76
+      ]
+    },
+    {
+      "id": "p091b06",
+      "pdf_page": 91,
+      "book_page": "69",
+      "kind": "paragraph",
+      "en": "S1: data1 = NEW; S2: data2 = NEW; F13: FENCE R11: release(lock) F21: FENCE F14: FENCE A21: acquire(lock) F22: FENCE",
+      "bbox": [
+        254.3,
+        540.86,
+        443.5,
+        623.76
+      ]
+    },
+    {
+      "id": "p091b07",
+      "pdf_page": 91,
+      "book_page": "69",
+      "kind": "paragraph",
+      "en": "L1: r2 = data2; L2: r1 = data1; /* Two Possible Outcomes under XC: F23: FENCE (r1, r2) = R22: release(lock) (0, 0) or (NEW, NEW) F24: FENCE Same as with SC */",
+      "bbox": [
+        365.3,
+        630.86,
+        638.54,
+        701.36
+      ]
+    },
+    {
+      "id": "p092b01",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "Let us motivate “SC for DRF” with two examples. Both Table 5.7 and Table 5.8 depict examples in which Core C1 stores two locations (S1 and S2) and Core C2 loads the two locations in the opposite order (L1 and L2). The examples differ because Core C2 does no synchronization in Table 5.7 but acquires the same lock as Core C1 in Table 5.8.",
+      "bbox": [
+        271.75,
+        174.72,
+        684.21,
+        225.95
+      ]
+    },
+    {
+      "id": "p092b02",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "Since Core C2 does no synchronization in Table 5.7, its loads can execute concurrently with Core C1’s stores. Since XC allows Core C1 to reorder stores S1 and S2 (or not) and Core C2 to reorder loads L1 and L2 (or not), four outcomes are possible wherein (r1, r2) = (0, 0), (0, NEW), (NEW, 0), or (NEW, NEW). Output (0, NEW) occurs, for example, if loads and stores execute in the sequence S2, L1, L2, and then S1 or the sequence L2, S1, S2, and then L1. However, this example includes two data races (S1 with L2 and S2 with L1) because Core C2 does not acquire the lock used by Core C1.",
+      "bbox": [
+        271.75,
+        228.51,
+        684.21,
+        320.1
+      ]
+    },
+    {
+      "id": "p092b03",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "caption",
+      "en": "Table 5.8 depicts the case in which Core C2 acquires the same lock as acquired by Core",
+      "bbox": [
+        298.65,
+        322.66,
+        684.2,
+        333.55
+      ]
+    },
+    {
+      "id": "p092b04",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "C1. In this case, Core C1’s critical section will execute completely before Core C2’s or vice versa. This allows two outcomes: (r1, r2) = (0, 0) or (NEW, NEW). Importantly, these outcomes are not affected by whether, within their respective critical sections, Core C1 reorders stores S1 and S2 and/or Core C2 reorders loads L1 and L2. “A tree falls in the woods (reordered stores), but no one hears it (no concurrent loads).” Moreover, the XC outcomes are the same as would be allowed under SC. “SC for DRF” generalizes from these two examples to claim:",
+      "bbox": [
+        271.75,
+        336.11,
+        684.21,
+        414.25
+      ]
+    },
+    {
+      "id": "p092b05",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "• either an execution has data races that expose XC’s reordering of loads or stores, or",
+      "bbox": [
+        287.97,
+        424.95,
+        656.66,
+        435.84
+      ]
+    },
+    {
+      "id": "p092b06",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "• the XC execution is data-race-free and indistinguishable from an SC execution.",
+      "bbox": [
+        287.97,
+        446.72,
+        644.79,
+        457.61
+      ]
+    },
+    {
+      "id": "p092b07",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "A more concrete understanding of “SC for DRF” requires some definitions.",
+      "bbox": [
+        298.65,
+        468.31,
+        628.99,
+        479.2
+      ]
+    },
+    {
+      "id": "p092b08",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "• Some memory operations are tagged as synchronization (“synchronization operations”), while the rest are tagged data by default (“data operations”). Synchronization operations include lock acquires and releases.",
+      "bbox": [
+        287.97,
+        489.91,
+        684.21,
+        527.7
+      ]
+    },
+    {
+      "id": "p092b09",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "• Two data operations Di and Dj conflict if they are from different cores (threads) (i.e., not ordered by program order), access the same memory location, and at least one is a store.",
+      "bbox": [
+        287.97,
+        538.58,
+        684.2,
+        562.92
+      ]
+    },
+    {
+      "id": "p092b10",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "• Two synchronization operations Si and Sj conflict if they are from different cores (threads), access the same memory location (e.g., the same lock), and at least one of the synchronization operations is a write (e.g., acquire and release of a spinlock conflict, whereas two read_locks on a reader-writer lock do not).",
+      "bbox": [
+        287.97,
+        573.79,
+        684.21,
+        625.03
+      ]
+    },
+    {
+      "id": "p092b11",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "• Two synchronization operations Si and Sj transitively conflict if either Si and Sj conflict or if Si conflicts with some synchronization operation Sk, Sk <p Sk’ (i.e., Sk is earlier than Sk’ in a core K’s program order), and Sk’ transitively conflicts with Sj.",
+      "bbox": [
+        287.97,
+        635.74,
+        684.2,
+        673.53
+      ]
+    },
+    {
+      "id": "p092b12",
+      "pdf_page": 92,
+      "book_page": "70",
+      "kind": "paragraph",
+      "en": "• Two data operations Di and Dj race if they conflict and they appear in the global memory order without an intervening pair of transitively conflicting synchronization operations",
+      "bbox": [
+        287.97,
+        684.4,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p093b01",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "by the same cores (threads) i and j. In other words, a pair of conflicting data operations Di <m Dj are not a data race if and only if there exists a pair of transitively conflicting synchronization operations Si and Sj such that Di <m Si <m Sj <m Dj.",
+      "bbox": [
+        276.7,
+        174.72,
+        664.26,
+        212.5
+      ]
+    },
+    {
+      "id": "p093b02",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "• An SC execution is data-race-free (DRF) if no data operations race.",
+      "bbox": [
+        268.02,
+        222.09,
+        573.89,
+        232.98
+      ]
+    },
+    {
+      "id": "p093b03",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "• A program is DRF if all its SC executions are DRF.",
+      "bbox": [
+        268.02,
+        242.56,
+        502.94,
+        253.45
+      ]
+    },
+    {
+      "id": "p093b04",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "• A memory consistency model supports “SC for DRF programs” if all executions of all DRF programs are SC executions. This support usually requires some special actions for synchronization operations.",
+      "bbox": [
+        268.02,
+        263.03,
+        664.25,
+        300.82
+      ]
+    },
+    {
+      "id": "p093b05",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "Consider the memory model XC. Require that the programmer or low-level software ensures that all synchronization operations are preceded and succeeded by FENCEs, as they are in Table 5.8. With FENCEs around synchronization operations, XC supports SC for DRF programs. While a proof is beyond the scope of this work, the intuition behind this result follows from the examples in Table 5.7 and Table 5.8 discussed above. Supporting SC for DRF programs allows many programmers to reason about their programs with SC and not the more complex rules of XC and, at the same time, benefit from any hardware performance improvements or simplifications XC enables over SC. The catch—and isn’t there always a catch?—is that guaranteeing DRF at high performance (i.e., without labeling too many operations as synchronization) can be challenging.",
+      "bbox": [
+        251.8,
+        309.46,
+        664.26,
+        454.85
+      ]
+    },
+    {
+      "id": "p093b06",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "• It is undecidable to determine exactly which memory operations can race and therefore must be tagged as synchronization. Figure 5.4 depicts an execution in which core C2’s store should be tagged as synchronization—which determines whether FENCEs are actually necessary—only if one can determine whether C1’s initial block of code does not halt, which is, of course, undecidable. Undecidability can be avoided by adding FENCEs whenever one is unsure whether a FENCE is needed. This is always correct, but may hurt performance. In the limit, one can surround all memory operations by FENCEs to ensure SC behavior for any program.",
+      "bbox": [
+        268.02,
+        463.48,
+        664.26,
+        568.52
+      ]
+    },
+    {
+      "id": "p093b07",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "• Finally, programs may have data races that violate DRF due to bugs. The bad news is that, after data races, the execution may no longer obey SC, forcing programmers to reason about the underlying relaxed memory model (e.g., XC). The good news is that all executions will obey SC at least until the first data race, allowing some debugging with SC reasoning only [5].",
+      "bbox": [
+        268.02,
+        578.1,
+        664.26,
+        642.79
+      ]
+    },
+    {
+      "id": "p093b08",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "In summary, a programmer using a relaxed memory system can reason about their program with two options:",
+      "bbox": [
+        251.8,
+        651.43,
+        664.25,
+        675.77
+      ]
+    },
+    {
+      "id": "p093b09",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "paragraph",
+      "en": "• they can reason directly using the rules for what the model does and does not order (e.g.,",
+      "bbox": [
+        268.02,
+        684.4,
+        664.26,
+        695.29
+      ]
+    },
+    {
+      "id": "p093b10",
+      "pdf_page": 93,
+      "book_page": "71",
+      "kind": "caption",
+      "en": "Table 5.5, etc.) or",
+      "bbox": [
+        276.7,
+        697.85,
+        353.79,
+        708.74
+      ]
+    },
+    {
+      "id": "p094b01",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "paragraph",
+      "en": "C1 C2",
+      "bbox": [
+        330.59,
+        176.39,
+        443.48,
+        186.39
+      ]
+    },
+    {
+      "id": "p094b02",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "paragraph",
+      "en": "Core C2’s FENCEs F3 and F4 are necessary only if core C1 executes Does this “X = 1.” Determining whether “X = 1” code halt? F3: FENCE? executes is undecidable, because it X = 2 requires solving the undecidable halting F1: FENCE F4: FENCE? problem. race? X = 1 F2: FENCE",
+      "bbox": [
+        277.98,
+        202.7,
+        677.27,
+        294.19
+      ]
+    },
+    {
+      "id": "p094b03",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "caption",
+      "en": "Figure 5.4: Optimal placement of FENCEs is undecidable.",
+      "bbox": [
+        271.75,
+        316.72,
+        529.91,
+        327.61
+      ]
+    },
+    {
+      "id": "p094b04",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "paragraph",
+      "en": "• they can insert sufficient synchronization to ensure no data races—synchronization races are still allowed—and reason about their program using the relatively simple model of sequential consistency that never appears to perform memory operations out of program order.",
+      "bbox": [
+        287.97,
+        352.7,
+        684.21,
+        403.94
+      ]
+    },
+    {
+      "id": "p094b05",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "paragraph",
+      "en": "We recommend the latter “sequential consistency for data-race-free” approach almost always, leaving the former approach only to experts writing code like synchronization libraries or device drivers.",
+      "bbox": [
+        271.75,
+        418.12,
+        684.2,
+        455.91
+      ]
+    },
+    {
+      "id": "p094b06",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "heading",
+      "en": "5.5 SOME RELAXED MODEL CONCEPTS",
+      "bbox": [
+        271.75,
+        476.76,
+        567.58,
+        490.77
+      ]
+    },
+    {
+      "id": "p094b07",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "paragraph",
+      "en": "The academic literature offers many alternative relaxed memory models and concepts. Here we review some relaxed memory concepts from the vast literature to provide a basic understanding, but a full and formal exploration is beyond the scope of this primer. Fortunately, users of SC for DRF, which may be most programmers, do not have to master the concepts in this difficult section. On a first pass, readers may wish to skim or skip this section.",
+      "bbox": [
+        271.75,
+        502.13,
+        684.21,
+        566.81
+      ]
+    },
+    {
+      "id": "p094b08",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "paragraph",
+      "en": "5.5.1 RELEASE CONSISTENCY In the same ISCA 1990 session in which Adve and Hill proposed “SC for DRF,” Gharachorloo et al. [20] proposed release consistency (RC). Using the terminology of this chapter, the key observation of RC is that surrounding all synchronization operations with FENCEs is overkill. With a deeper understanding of synchronization, a synchronization acquire needs only a succeeding FENCE, while a synchronization release needs only a preceding FENCE.",
+      "bbox": [
+        271.75,
+        586.59,
+        684.2,
+        668.39
+      ]
+    },
+    {
+      "id": "p094b09",
+      "pdf_page": 94,
+      "book_page": "72",
+      "kind": "paragraph",
+      "en": "For the critical section example of Table 5.4, FENCEs F11, F14, F21, and F24 may be omitted. Let us focus on “R11: release(lock).” FENCE F13 is important because it orders the critical section’s loads (L1i) and stores (S1j) before the lock release. FENCE F14 may be",
+      "bbox": [
+        271.75,
+        670.95,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p095b01",
+      "pdf_page": 95,
+      "book_page": "73",
+      "kind": "paragraph",
+      "en": "omitted because there is no problem if core C1’s subsequent memory operations (none shown in the table) were performed early before release R11.",
+      "bbox": [
+        251.8,
+        174.72,
+        664.26,
+        199.05
+      ]
+    },
+    {
+      "id": "p095b02",
+      "pdf_page": 95,
+      "book_page": "73",
+      "kind": "paragraph",
+      "en": "RC actually allows these subsequent operations to be performed as early as the beginning of the critical section, in contrast to XC’s FENCE, which disallows such an ordering. RC provides ACQUIRE and RELEASE operations that are similar to FENCEs, but order memory accesses in only one direction instead of in both directions like FENCEs. More generally, RC only requires:",
+      "bbox": [
+        251.8,
+        201.61,
+        664.26,
+        266.3
+      ]
+    },
+    {
+      "id": "p095b03",
+      "pdf_page": 95,
+      "book_page": "73",
+      "kind": "paragraph",
+      "en": "ACQUIRE Load, Store (but not Load, Store ACQUIRE) ! ! Load, Store RELEASE (but not RELEASE Load, Store) and ! ! SC ordering of ACQUIREs and RELEASEs: ACQUIRE ACQUIRE ! ACQUIRE RELEASE ! RELEASE ACQUIRE, and ! RELEASE RELEASE !",
+      "bbox": [
+        278.7,
+        268.86,
+        580.45,
+        367.54
+      ]
+    },
+    {
+      "id": "p095b04",
+      "pdf_page": 95,
+      "book_page": "73",
+      "kind": "paragraph",
+      "en": "5.5.2 CAUSALITY AND WRITE ATOMICITY Here we illustrate two subtle properties of relaxed models. The first property, causality, requires that, “If I see it and tell you about it, then you will see it too.” For example, consider Table 5.9 where core C1 does a store S1 to update data1. Let core C2 spin until it sees the results of S1 (r1==NEW), perform FENCE F1, and then do S2 to update data2. Similarly, core C3 spins on load L2 until it sees the result of S2 (r2==NEW), performs FENCE F2, and then does L3 to observe store S1. If core C3 is guaranteed to observe S1 done (r3==NEW), then causality holds. On the other hand, if r3 is 0, causality is violated.",
+      "bbox": [
+        251.8,
+        398.29,
+        664.25,
+        507.0
+      ]
+    },
+    {
+      "id": "p095b05",
+      "pdf_page": 95,
+      "book_page": "73",
+      "kind": "paragraph",
+      "en": "The second property, write atomicity (also called store atomicity or multi-copy atomicity), requires that a core’s store is logically seen by all other cores at once. XC is write atomic by definition since its memory order (<m) specifies a logically atomic point at which a store takes effect at memory. Before this point, no other cores may see the newly stored value. After this point, all other cores must see the new value or the value from a later store, but not a value that was clobbered by the store. Write atomicity allows a core to see the value of its own store before it is seen by other cores, as required by XC, causing some to consider “write atomicity” to be a poor name.",
+      "bbox": [
+        251.8,
+        509.56,
+        664.26,
+        614.6
+      ]
+    },
+    {
+      "id": "p095b06",
+      "pdf_page": 95,
+      "book_page": "73",
+      "kind": "paragraph",
+      "en": "A necessary, but not sufficient, condition for write atomicity is proper handling of the Independent Read Independent Write (IRIW) example. IRIW is depicted in Table 5.10 where cores C1 and C2 do stores S1 and S2, respectively. Assume that core C3’s load L1 observes S1 (r1==NEW) and core C4’s L3 observes S2 (r3==NEW). What if C3’s L2 loads 0 (r2==0) and C4’s L4 loads 0 (r4==0)? The former implies that core C3 sees store S1 before it sees S2, while the latter implies that C4 sees S2 before S1. In this case, stores S1 and S2 are not just “reordered,” but no order of stores even exists, and write atomicity is violated. The converse is not",
+      "bbox": [
+        251.8,
+        617.16,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p096b01",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "paragraph",
+      "en": "necessarily true: proper handling of IRIW does not automatically imply store atomicity. Some more facts (that can make your head hurt and long for SC, TSO, or SC for DRF):",
+      "bbox": [
+        271.75,
+        174.72,
+        684.21,
+        199.05
+      ]
+    },
+    {
+      "id": "p096b02",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "paragraph",
+      "en": "• Write atomicity implies causality. In Table 5.9, for example, core C2 observes store S1, performs a FENCE, and then does store S2. With write atomicity, this ensures C3 sees store S1 as done.",
+      "bbox": [
+        287.97,
+        215.5,
+        684.2,
+        253.28
+      ]
+    },
+    {
+      "id": "p096b03",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "paragraph",
+      "en": "• Causality does not imply write atomicity. For Table 5.10, assume that cores C1 and C3 are two thread contexts of a multithreaded core that share a write buffer. Assume the same for cores C2 and C4. Let C1 put S1 in the C1–C3 write buffer, so it is observed by C3’s L1 only. Similarly, C2 puts S2 into the C2–C4 write buffer, so S2 is observed by C4’s L3 only. Let both C3 do L2 and C4 do L4 before either store leaves the write buffers. This execution violates write atomicity. Using the example in Table 5.9, however, one can see that this design provides causality.",
+      "bbox": [
+        287.97,
+        275.64,
+        684.21,
+        367.22
+      ]
+    },
+    {
+      "id": "p096b04",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "caption",
+      "en": "Table 5.9: Causality: If I see a store and tell you about it, must you see it too?",
+      "bbox": [
+        271.75,
+        394.58,
+        607.82,
+        405.47
+      ]
+    },
+    {
+      "id": "p096b05",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments S1: data1 = NEW; /* Initially, data1 & data2 = 0 */ L1: r 1 = data1; B1: i f (r1 ≠ NEW) goto L1; F1: F ENCE",
+      "bbox": [
+        274.25,
+        419.25,
+        637.18,
+        488.48
+      ]
+    },
+    {
+      "id": "p096b06",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "paragraph",
+      "en": "S2: d ata2 = NEW; L2: r2 = data2; B2: if (r2 ≠ NEW) goto L2; F2: FENCE",
+      "bbox": [
+        381.25,
+        495.62,
+        624.11,
+        548.48
+      ]
+    },
+    {
+      "id": "p096b07",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "paragraph",
+      "en": "L3: r3 = data1; /* r3==NEW? */",
+      "bbox": [
+        506.54,
+        555.62,
+        638.88,
+        566.12
+      ]
+    },
+    {
+      "id": "p096b08",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "caption",
+      "en": "Table 5.10: IRIW example: Must stores be in some order?",
+      "bbox": [
+        271.75,
+        589.86,
+        525.5,
+        600.75
+      ]
+    },
+    {
+      "id": "p096b09",
+      "pdf_page": 96,
+      "book_page": "74",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Core C3 Core C4 S1: data1 = NEW; S2: data2 = NEW; /* Initially, data1= data2=0 */ L1: r1 = data1; /* NEW */ F1: FENCE L3: r3 = data2; /* NEW */ L2: r2 = data2; /* NEW? */ F2: FENCE L4: r4 = data1; /* NEW? */",
+      "bbox": [
+        276.25,
+        612.54,
+        681.89,
+        701.36
+      ]
+    },
+    {
+      "id": "p097b01",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "Finally, the XC memory model is both store atomic and maintains causality. We previously argued that XC was store atomic. XC maintains causality because store atomicity implies causality.",
+      "bbox": [
+        251.8,
+        174.72,
+        664.25,
+        212.5
+      ]
+    },
+    {
+      "id": "p097b02",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "heading",
+      "en": "5.6 RELAXED MEMORY MODEL CASE STUDIES",
+      "bbox": [
+        251.8,
+        229.7,
+        595.3,
+        243.71
+      ]
+    },
+    {
+      "id": "p097b03",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "In this section, we present two memory model case studies: RISC-V’S RVWMO (RISC-V Weak Memory Order) and IBM’s Power Memory model.",
+      "bbox": [
+        251.8,
+        251.32,
+        664.26,
+        275.66
+      ]
+    },
+    {
+      "id": "p097b04",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "5.6.1 RISC-V WEAK MEMORY ORDER (RVWMO) RISC-V implements a memory model, RVWMO,1 which can be understood as a mix of Release Consistency (RC) and XC. Similarly to XC, RVWMO is defined in terms of a global memory order (a total order of all memory operations) and has several variants of FENCE instructions. Similarly to RC, loads and stores can carry annotations: a load instruction can carry an ACQUIRE annotation, a store instruction can carry a RELEASE annotation, and an RMW instruction can be annotated with a RELEASE, ACQUIRE, or both RELEASE and ACQUIRE. In the following, we will provide a summary of the RVWMO memory model, explaining how RVWMO combines aspects of XC and RC. We will also discuss how RVWMO is subtly stronger than XC in some aspects while being weaker in other aspects.",
+      "bbox": [
+        251.8,
+        291.78,
+        664.26,
+        427.38
+      ]
+    },
+    {
+      "id": "p097b05",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "RELEASE/ACQUIRE orderings. There are two types of ACQUIRE annotations: ACQUIRE-RC and ACQUIRE-RC .2 Likewise, there are two types of RELEASE an- P C SC notations: RELEASE-RC and RELEASE-RC . Whereas a load (store) can carry either P C SC of the ACQUIRE (RELEASE) annotations, an RMW can carry only RC annotations. The SC annotations preserve the following orderings:",
+      "bbox": [
+        251.8,
+        437.14,
+        664.26,
+        501.83
+      ]
+    },
+    {
+      "id": "p097b06",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "• ACQUIRE Load,Store (ACQUIRE refers to both ACQUIRE-RC and SC ! ACQUIRE-RC ) P C",
+      "bbox": [
+        268.02,
+        512.16,
+        664.25,
+        536.55
+      ]
+    },
+    {
+      "id": "p097b07",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "• Load,Store RELEASE (RELEASE refers to both RELEASE-RC and SC ! RELEASE-RC ) P C",
+      "bbox": [
+        268.02,
+        546.93,
+        664.25,
+        571.32
+      ]
+    },
+    {
+      "id": "p097b08",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "• RELEASE-RC ACQUIRE-RC SC SC !",
+      "bbox": [
+        268.02,
+        581.7,
+        459.77,
+        599.69
+      ]
+    },
+    {
+      "id": "p097b09",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "FENCE orderings. RVWMO has several variants of FENCE instructions. There is a strong FENCE instruction, FENCE RW,RW,3 which, like the one in XC, enforces the Load,Store Load,Store orderings. In addition, there are five other non-trivial combinations: FENCE ! RW, W; FENCE R,RW; FENCE R,R; FENCE W,W; and FENCE.TSO. FENCE R,R, for",
+      "bbox": [
+        251.8,
+        610.12,
+        664.26,
+        661.36
+      ]
+    },
+    {
+      "id": "p097b10",
+      "pdf_page": 97,
+      "book_page": "75",
+      "kind": "paragraph",
+      "en": "1RISC-V also specifies a TSO variant called zTSO which is not discussed in this section. 2PC for Processor Consistency and SC for Sequential Consistency. PC (Section 4.5) is a less-formal precursor to TSO, without TSO’s write atomicity property. 3R denotes a read (load) and W denotes a write (store).",
+      "bbox": [
+        251.8,
+        668.96,
+        664.26,
+        708.06
+      ]
+    },
+    {
+      "id": "p098b01",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "instance, enforces the Load Load orderings only. FENCE.TSO enforces the Load Load, ! ! Store Store and the Load Store orderings but not Store Load.",
+      "bbox": [
+        271.75,
+        174.72,
+        684.21,
+        199.05
+      ]
+    },
+    {
+      "id": "p098b02",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "! ! !",
+      "bbox": [
+        297.79,
+        195.69,
+        554.23,
+        206.15
+      ]
+    },
+    {
+      "id": "p098b03",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "caption",
+      "en": "Table 5.11: RVWMO: FENCE and RELEASE-ACQUIRE orderings ensure that both r1 and",
+      "bbox": [
+        271.75,
+        211.7,
+        684.19,
+        222.59
+      ]
+    },
+    {
+      "id": "p098b04",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "r2 cannot read 0",
+      "bbox": [
+        271.75,
+        225.15,
+        342.88,
+        236.04
+      ]
+    },
+    {
+      "id": "p098b05",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments S1: RELEASE-RCSC x = NEW; S2: y = NEW; Initially x=y=0 L1: ACQUIRE-RCSC r1 = y; FENCE RW, RW; L2: r2=x;",
+      "bbox": [
+        274.25,
+        249.84,
+        633.21,
+        306.66
+      ]
+    },
+    {
+      "id": "p098b06",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "An Example. Table 5.11 shows an example with both RELEASE-ACQUIRE and FENCE orderings. S1 L1 is enforced in core C1 due to the former and S2 L2 is enforced in core ! ! C2 due to the latter. The combination, thus, ensures that both r1 and r2 cannot read 0.",
+      "bbox": [
+        271.75,
+        324.8,
+        684.21,
+        362.58
+      ]
+    },
+    {
+      "id": "p098b07",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "caption",
+      "en": "Table 5.12: Address dependency induced ordering. Can r1=&data2 and r2=0?",
+      "bbox": [
+        271.75,
+        374.21,
+        610.69,
+        385.1
+      ]
+    },
+    {
+      "id": "p098b08",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments S1: data2 = NEW; L1: r1 = pointer; Initially pointer = & data1, data1 = 0 FENCE W,W S2: pointer = &data2; L2: r2=*r1;",
+      "bbox": [
+        274.25,
+        398.89,
+        677.79,
+        455.72
+      ]
+    },
+    {
+      "id": "p098b09",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "caption",
+      "en": "Table 5.13: Data dependency induced ordering. Can r1 and r2 read 42?",
+      "bbox": [
+        271.75,
+        483.94,
+        582.71,
+        494.83
+      ]
+    },
+    {
+      "id": "p098b10",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments L1: r1 = x; L2: r2 = y; Initially x=y=0 S1: y = r1; S2: x = r2;",
+      "bbox": [
+        274.25,
+        508.62,
+        633.21,
+        550.45
+      ]
+    },
+    {
+      "id": "p098b11",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "Dependency-induced orderings. RVWMO is subtly stronger than XC in some respects. Address, data, and control dependencies can induce memory orderings in RVWMO but not in XC. Consider the example shown in Table 5.12. Here, core C1 writes NEW to data2 and then sets pointer to point to the location of data2. (The two stores S1 and S2 are ordered via a FENCE W,W instruction). In core C2, L1 loads the value of pointer into r1 and then load L2 dereferences r1. Despite the two loads L1 and L2 not being explicitly ordered, RVWMO implicitly enforces L1 L2 because there is an address dependency between L1 and L2: the value pro- ! duced by L1 is dereferenced by L2.",
+      "bbox": [
+        271.75,
+        576.81,
+        684.21,
+        681.84
+      ]
+    },
+    {
+      "id": "p098b12",
+      "pdf_page": 98,
+      "book_page": "76",
+      "kind": "paragraph",
+      "en": "Consider the example shown in Table 5.13, also referred to as load buffering. Let us assume that both x and y are initially 0. Can both r1 and r2 be allowed to read an arbitrary value (say",
+      "bbox": [
+        271.75,
+        684.4,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p099b01",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "42), out of thin air? Somewhat surprisingly, XC does not prohibit this behavior. Because there is no FENCE between either L1 and S1 nor L2 and S2, XC does not enforce either of the Load Store orderings. This can cause an execution in which: !",
+      "bbox": [
+        251.8,
+        174.72,
+        664.26,
+        219.6
+      ]
+    },
+    {
+      "id": "p099b02",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "• S1 predicts that L1 will read 42 and then speculatively writes 42 to y,",
+      "bbox": [
+        268.02,
+        223.2,
+        577.32,
+        234.09
+      ]
+    },
+    {
+      "id": "p099b03",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "• L2 reads 42 from y into r2,",
+      "bbox": [
+        268.02,
+        244.94,
+        395.29,
+        255.83
+      ]
+    },
+    {
+      "id": "p099b04",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "• S2 writes 42 to x, and",
+      "bbox": [
+        268.02,
+        266.69,
+        371.69,
+        277.58
+      ]
+    },
+    {
+      "id": "p099b05",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "• L1 reads 42 from x into r1, thereby making the initial prediction “correct.”",
+      "bbox": [
+        268.02,
+        288.43,
+        601.08,
+        299.32
+      ]
+    },
+    {
+      "id": "p099b06",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "RVWMO, however, disallows this behavior by implicitly mandating both Load Store order- ! ings (L1 S1 and L2 S2) since there is a data dependency between each of the loads and ! ! the stores: the value read by each of the loads is written by the following store.",
+      "bbox": [
+        251.8,
+        310.01,
+        664.26,
+        347.8
+      ]
+    },
+    {
+      "id": "p099b07",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "In a similar vein, RVWMO also implicitly enforces an ordering between a load and a subsequent store that is control dependent on the load. This is to prevent a causality cycle, for example shown in Table 5.14, wherein a store is able to affect the value read by the preceding load which decides whether or not the store must execute.",
+      "bbox": [
+        251.8,
+        350.36,
+        664.26,
+        401.6
+      ]
+    },
+    {
+      "id": "p099b08",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "caption",
+      "en": "Table 5.14: Control dependency induced ordering. Can r1 read 42, causing S1 (indirectly) to",
+      "bbox": [
+        251.8,
+        412.41,
+        664.25,
+        423.3
+      ]
+    },
+    {
+      "id": "p099b09",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "affect its own execution?",
+      "bbox": [
+        251.8,
+        425.86,
+        358.25,
+        436.75
+      ]
+    },
+    {
+      "id": "p099b10",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments L1: r1=x; L2: r2 = y; Initially x = y = 0 B1: if r1 ≠ 42 return; S1: y=42; S2: x= r2;",
+      "bbox": [
+        254.3,
+        450.53,
+        613.26,
+        507.4
+      ]
+    },
+    {
+      "id": "p099b11",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "It is worth noting that all of the above dependencies refer to syntactic dependencies rather than semantic dependencies, i.e, whether or not there is any dependency is a function of the identities of the registers, rather than the actual values. In addition to address, data and control, RVWMO also enforces “pipeline dependencies” to reflect behaviors of most processor pipeline implementations; a discussion of this is beyond the scope of this primer and readers are referred to the RISC-V specification [31].",
+      "bbox": [
+        251.8,
+        529.26,
+        664.26,
+        607.4
+      ]
+    },
+    {
+      "id": "p099b12",
+      "pdf_page": 99,
+      "book_page": "77",
+      "kind": "paragraph",
+      "en": "Same address orderings. Recall that XC maintains TSO ordering rules for accesses to the same address. Like XC, RVWMO also enforces Load Store, Store Store orderings and does not ! ! enforce Store Load orderings to the same address. Differently from XC, RVWMO does not ! enforce Load Load ordering to the same address in all situations. It is only enforced when: (a) ! there is no store to the same address between the two loads and (b) the two loads return values written by different stores. For a detailed discussion on the rationale for this subtlety, readers are referred to the RISC-V specification [31].",
+      "bbox": [
+        251.8,
+        617.16,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p100b01",
+      "pdf_page": 100,
+      "book_page": "78",
+      "kind": "paragraph",
+      "en": "RMWs. RISC-V supports two types of RMWs: atomic memory operations (AMO) and load reserved/store conditionals (LdR/StC). Whereas AMOs come from a single instruction (e.g., fetch-and-increment), LdR/StCs are actually composed of two separate instructions: the LdR which brings in a value and a reservation to the core and StC which succeeds only if the reservation is still held. The atomicity semantics of the two types of RMWs are subtly different. Similarly to an XC RMW, an AMO is said to be atomic if the load and store appear consecutively in the global memory order. LdR/StC is weaker. Suppose the LdR reads a value produced by store s; an LdR/StC is said to be atomic as long as there are no stores to the same address between s and the StC in the global memory order.",
+      "bbox": [
+        271.75,
+        174.72,
+        684.21,
+        293.2
+      ]
+    },
+    {
+      "id": "p100b02",
+      "pdf_page": 100,
+      "book_page": "78",
+      "kind": "paragraph",
+      "en": "Summary. In summary, RVWMO is a recent relaxed memory model that combines aspects of XC and RC. For a detailed prose and formal specification, readers are referred to the RISC-V specification [31].",
+      "bbox": [
+        271.75,
+        302.96,
+        684.21,
+        340.75
+      ]
+    },
+    {
+      "id": "p100b03",
+      "pdf_page": 100,
+      "book_page": "78",
+      "kind": "paragraph",
+      "en": "5.6.2 IBM POWER IBM Power implements the Power memory model [23] (see especially Book II’s Chapter 1, Section 4.4, and Appendix B). We attempt to give the gist of the Power memory model here, but we refer the reader to the Power manual for the definitive presentation, especially for programming Power. We do not provide an ordering table like Table 5.5 for SC because we are not confident we could specify all entries correctly. We discuss normal cacheable memory only (“Memory Coherence” enabled, “Write Through Required” disabled, and “Caching Inhibited” disabled) and not I/O space, etc. PowerPC [24] represents earlier versions of the current Power model. On a first pass of this primer, readers may wish to skim or skip this section; this memory model is significantly more complicated than the models presented thus far in this primer.",
+      "bbox": [
+        271.75,
+        357.95,
+        684.21,
+        493.55
+      ]
+    },
+    {
+      "id": "p100b04",
+      "pdf_page": 100,
+      "book_page": "78",
+      "kind": "paragraph",
+      "en": "Power provides a relaxed model that is superficially similar to XC but with important differences that include the following.",
+      "bbox": [
+        271.75,
+        496.11,
+        684.2,
+        520.45
+      ]
+    },
+    {
+      "id": "p100b05",
+      "pdf_page": 100,
+      "book_page": "78",
+      "kind": "paragraph",
+      "en": "First, stores in Power are performed with respect to (w.r.t.) other cores, not w.r.t. memory. A store by core C1 is “performed w.r.t.” core C2 when any loads by core C2 to the same address will see the newly stored value or a value from a later store, but not the previous value that was clobbered by the store. Power ensures that if core C1 uses FENCEs to order store S1 before S2 and before S3, then the three stores will be performed w.r.t. every other core Ci in the same order. In the absence of FENCEs, however, core C1’s store S1 may be performed w.r.t. core C2 but not yet performed w.r.t. to C3. Thus, Power is not guaranteed to create a total memory order (<m) as did XC.",
+      "bbox": [
+        271.75,
+        523.01,
+        684.21,
+        628.05
+      ]
+    },
+    {
+      "id": "p100b06",
+      "pdf_page": 100,
+      "book_page": "78",
+      "kind": "paragraph",
+      "en": "Second, some FENCEs in Power are defined to be cumulative. Let a core C2 execute some memory accesses X1, X2, . . . , a FENCE, and then some memory accesses Y1, Y2,…. Let set X = {Xi} and set Y = {Yi}. (The Power manual calls these sets A and B, respectively.) Define cumulative to mean three things: (a) add to set X the memory accesses by other cores that are ordered before the FENCE (e.g., add core C1’s store S1 to X if S1 is performed w.r.t. core C2 before C2’s FENCE); (b) add to set Y the memory accesses by other cores that are ordered",
+      "bbox": [
+        271.75,
+        630.61,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p101b01",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "after the FENCE by data dependence, control dependence, or another FENCE; and (c) apply (a) recursively backward (e.g., for cores that have accesses previously ordered with core C1) and apply (b) recursively forward. (FENCEs in XC are also cumulative, but their cumulative behavior is automatically provided by XC’s total memory order, not by the FENCEs specifically.)",
+      "bbox": [
+        251.8,
+        174.72,
+        664.25,
+        225.95
+      ]
+    },
+    {
+      "id": "p101b02",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "Third, Power has three kinds of FENCEs (and more for I/O memory), whereas XC has only one FENCE.",
+      "bbox": [
+        251.8,
+        228.51,
+        664.25,
+        252.85
+      ]
+    },
+    {
+      "id": "p101b03",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "• SYNC or HWSYNC (“HW” means “heavy weight” and “SYNC” stands for “synchronization”) orders all accesses X before all accesses Y and is cumulative.",
+      "bbox": [
+        268.02,
+        261.26,
+        664.26,
+        285.6
+      ]
+    },
+    {
+      "id": "p101b04",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "• LWSYNC (“LW” means “light weight”) orders loads in X before loads in Y, orders loads in X before stores in Y, and orders stores in X before stores in Y. LWSYNC is cumulative. Note that LWSYNC does not order stores in X before loads in Y.",
+      "bbox": [
+        268.02,
+        295.06,
+        664.26,
+        332.85
+      ]
+    },
+    {
+      "id": "p101b05",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "• ISYNC (“I” means “instruction”) is sometimes used to order two loads from the same core, but it is not cumulative and, despite its name, it is not a FENCE like HWSYNC and LWSYNC, because it orders instructions and not memory accesses. For these reasons, we do not use ISYNC in our examples.",
+      "bbox": [
+        268.02,
+        342.32,
+        664.26,
+        393.56
+      ]
+    },
+    {
+      "id": "p101b06",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "Fourth, Power orders accesses in some cases even without FENCEs. For example, if load L1 obtains a value used to calculate an effective address of a subsequent load L2, then Power orders load L1 before load L2. Also, if load L1 obtains a value used to calculate an effective address or data value of a subsequent store S2, then Power orders load L1 before store S2.",
+      "bbox": [
+        251.8,
+        401.96,
+        664.26,
+        453.2
+      ]
+    },
+    {
+      "id": "p101b07",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "caption",
+      "en": "Table 5.15 illustrates Power’s LWSYNC in action. Core C1 executes a LWSYNC to order",
+      "bbox": [
+        278.7,
+        455.76,
+        664.26,
+        466.65
+      ]
+    },
+    {
+      "id": "p101b08",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "data stores S1 and S2 before S3. Note that the LWSYNC does not order stores S1 and S2 with respect to each other, but this is not needed. A LWSYNC provides sufficient order here because it orders stores in X (S1 and S2) before stores in Y (S3). Similarly, core C2 executes a LWSYNC after its conditional branch B1 to ensure that load L1 completes with r1 assigned to SET before loads L2 and L3 execute. HWSYNC is not required because neither core needs to order stores before loads.",
+      "bbox": [
+        251.8,
+        469.21,
+        664.26,
+        547.35
+      ]
+    },
+    {
+      "id": "p101b09",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "caption",
+      "en": "Table 5.16 illustrates Power’s HWSYNC in action on a key part of Dekker’s algorithm.",
+      "bbox": [
+        278.7,
+        549.91,
+        664.25,
+        560.8
+      ]
+    },
+    {
+      "id": "p101b10",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "The HWSYNCs ensure core C1’s store S1 is before load L1 and core C2’s store S2 is before load L2. This prevents the execution from terminating with r1=0 and r2=0. Using LWSYNC would not prevent this execution because an LWSYNC does not order earlier stores before later loads.",
+      "bbox": [
+        251.8,
+        563.36,
+        664.26,
+        601.15
+      ]
+    },
+    {
+      "id": "p101b11",
+      "pdf_page": 101,
+      "book_page": "79",
+      "kind": "paragraph",
+      "en": "As depicted in Table 5.17, Power’s LWSYNCs can be used to make the causality example from Table 5.9 behave sensibly (i.e., r3 is always set to NEW). LWSYNC F1 is executed only after load L1 sees the new value of data1, which means that store S1 has been performed w.r.t. core C2. LWSYNC F1 orders S1 before S2 with respect to core C2 by the cumulative property. LWSYNC F2 is executed only after load L2 sees the new value of data2, which means that store S2 has been performed w.r.t. core C3. The cumulative property also ensures that store S1 has been performed w.r.t core C3 before S2 (because of LWSYNC F1). Finally, LWSYNC F2 orders load L2 before L3, ensuring r3 obtains the value NEW.",
+      "bbox": [
+        251.8,
+        603.71,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p102b01",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "caption",
+      "en": "Table 5.15: Power LWSYNCs to ensure r2 and r3 always get NEW",
+      "bbox": [
+        271.75,
+        175.76,
+        567.33,
+        186.65
+      ]
+    },
+    {
+      "id": "p102b02",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments S1: data1 = NEW; /* Initially, data1 & data2 = 0 & fl ag ≠ SET */ S2: data2 = NEW; F1: LWSYNC /* Ensures S1 and S2 befor S3 */ S3: fl ag = SET; L1: r1 = fl ag; /* spin loop: L1 & B1 may repeat many times */ B1: if (r1 ≠ SET) goto L1; F2: LWSYNC /* Ensure B1 before L2 and L3 */ L2: r2 = data1; L3: r3 = data2;",
+      "bbox": [
+        274.25,
+        200.45,
+        681.57,
+        332.3
+      ]
+    },
+    {
+      "id": "p102b03",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "caption",
+      "en": "Table 5.16: Power HWSYNCs to ensure both r1 and r2 are not set to 0",
+      "bbox": [
+        271.75,
+        358.52,
+        583.86,
+        369.41
+      ]
+    },
+    {
+      "id": "p102b04",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Comments S1: x = NEW; S2: y = NEW; /* Initially, x = 0 & y = 0 */ F1: HWSYNC F2: HWSYNC /* Ensure S1 before Li for i = 1,2 */ L1: r1 = y; L2: r2 = x;",
+      "bbox": [
+        274.25,
+        383.2,
+        635.9,
+        440.03
+      ]
+    },
+    {
+      "id": "p102b05",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "caption",
+      "en": "Table 5.17: Power LWSYNCs to ensure causality (r3 == NEW)",
+      "bbox": [
+        271.75,
+        466.27,
+        551.24,
+        477.16
+      ]
+    },
+    {
+      "id": "p102b06",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Core C3 S1: data1 = NEW; /* Initially, data1 & data2 = 0 */ L1: r1 = data1; B1: if (r1 ≠ NEW) goto L1; F1: LWSYNC",
+      "bbox": [
+        274.25,
+        490.95,
+        624.72,
+        560.18
+      ]
+    },
+    {
+      "id": "p102b07",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "paragraph",
+      "en": "S2: data2 = NEW; L2: r2 = data2; B2: if (r2 ≠ NEW) goto L2; F2: LWSYNC",
+      "bbox": [
+        367.25,
+        567.31,
+        610.7,
+        620.18
+      ]
+    },
+    {
+      "id": "p102b08",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "paragraph",
+      "en": "L3: r3 = data1; /* r3 ==N EW? */",
+      "bbox": [
+        491.25,
+        627.31,
+        623.79,
+        637.81
+      ]
+    },
+    {
+      "id": "p102b09",
+      "pdf_page": 102,
+      "book_page": "80",
+      "kind": "paragraph",
+      "en": "As depicted in Table 5.18, Power’s HWSYNCs can be used to make the Independent Read Independent Write Example (IRIW) of Table 5.10 behave sensibly (i.e., disallowing the result r1==NEW, r2==0, r3==NEW and r4==0). Using LWSYNCs is not sufficient. For exam-",
+      "bbox": [
+        271.75,
+        670.95,
+        684.2,
+        708.74
+      ]
+    },
+    {
+      "id": "p103b01",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "ple, core C3’s F1 HWSYNC must cumulatively order core C1’s store S1 before core C3’s load L2.",
+      "bbox": [
+        251.8,
+        174.72,
+        664.26,
+        199.05
+      ]
+    },
+    {
+      "id": "p103b02",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "An alternative way to look at the Power memory model is to specify the FENCEs needed to make Power behave like SC. Power can be restricted to SC executions by inserting an HWSYNC between each pair of memory-accessing instructions.4 The above is a thought experiment, and it is definitely not a recommended way to achieve good performance on Power.",
+      "bbox": [
+        251.8,
+        201.61,
+        664.25,
+        252.85
+      ]
+    },
+    {
+      "id": "p103b03",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "caption",
+      "en": "Table 5.18: Power HWSYNCs with the IRIW example",
+      "bbox": [
+        251.8,
+        266.33,
+        495.59,
+        277.22
+      ]
+    },
+    {
+      "id": "p103b04",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "Core C1 Core C2 Core C3 Core C4 S1: data1 = NEW; S2: data2 = NEW; /* Initially, data1 = data2 = 0 */ L1: r1 = data1; /* NEW */ L3: r3 = data2; /* NEW */ F1: HWSYNC F2: H WSYNC",
+      "bbox": [
+        254.3,
+        289.03,
+        663.25,
+        345.24
+      ]
+    },
+    {
+      "id": "p103b05",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "L2: r2 = data2; /* NEW? */ L4: r 4 = data1; / * NEW? */",
+      "bbox": [
+        420.3,
+        352.33,
+        654.03,
+        362.84
+      ]
+    },
+    {
+      "id": "p103b06",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "heading",
+      "en": "5.7 FURTHER READING AND COMMERCIAL RELAXED MEMORY MODELS",
+      "bbox": [
+        251.8,
+        399.38,
+        650.3,
+        428.83
+      ]
+    },
+    {
+      "id": "p103b07",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "5.7.1 ACADEMIC LITERATURE Below are a few highlights from the vast relaxed memory consistency literature. Among the first developed relaxed models was that of Dubois et al. [18] with weak ordering. Adve and Hill generalized weak ordering to the order strictly necessary for programmers with “SC for DRF” [3, 4]. Gharachorloo et al. [20] developed release consistency, as well as “proper labeling” (that can be viewed as a generalization of “SC for DRF”) and a model that allows synchronization operations to follow TSO (“RC ”). Adve and Gharachorloo [2] wrote a seminal memory model tutorial PC summarizing the state of the art in the mid-1990s.",
+      "bbox": [
+        251.8,
+        436.16,
+        664.26,
+        544.87
+      ]
+    },
+    {
+      "id": "p103b08",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "As far as we know, Meixner and Sorin [29] were the first to prove correctness of a relaxed memory model realized by separating the cores and the cache-coherent memory system with a reorder unit governed by certain rules.",
+      "bbox": [
+        251.8,
+        547.43,
+        664.25,
+        585.21
+      ]
+    },
+    {
+      "id": "p103b09",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "5.7.2 COMMERCIAL MODELS In addition to Power [23], commercial relaxed memory models include Alpha [33], SPARC RMO [34], and ARM [9, 10].",
+      "bbox": [
+        251.8,
+        601.34,
+        664.26,
+        642.8
+      ]
+    },
+    {
+      "id": "p103b10",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "Alpha [33] is largely defunct, but, like XC, assumes a total memory order. Alpha retains some importance because it had a large influence on Linux synchronization since Linux ran on Alpha [28] (see especially Chapter 12 and Appendix C). McKenney [28] points out that Alpha",
+      "bbox": [
+        251.8,
+        645.36,
+        664.26,
+        683.15
+      ]
+    },
+    {
+      "id": "p103b11",
+      "pdf_page": 103,
+      "book_page": "81",
+      "kind": "paragraph",
+      "en": "4FENCEs cannot restore SC on IBM Power when multiple access sizes are used [19].",
+      "bbox": [
+        267.02,
+        698.39,
+        553.77,
+        708.06
+      ]
+    },
+    {
+      "id": "p104b01",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "did not order two loads even if the first provided the effective address for the second. More generally, McKenney’s online book is a good source of information on Linux synchronization and its interaction with memory consistency models. Alglave et al. [8] provide a formal and an executable model for the same.",
+      "bbox": [
+        271.75,
+        174.72,
+        684.21,
+        225.95
+      ]
+    },
+    {
+      "id": "p104b02",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "SPARC Relaxed Memory Order (RMO) [34] also provides a total memory order like XC. Although SPARC allows the operating system to select a memory model among TSO, PSO, and RMO, all current SPARC implementations operate with TSO in all cases. TSO is a valid implementation of PSO and RMO since it is strictly stronger.",
+      "bbox": [
+        271.75,
+        228.51,
+        684.21,
+        279.75
+      ]
+    },
+    {
+      "id": "p104b03",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "ARMv7 [9, 10] provides a memory model similar in spirit to IBM Power. Like Power, it appears to not guarantee a total memory order. Like Power, ARM has multiple flavors of FENCEs, including a data memory barrier that can order all memory accesses or just stores and an instruction synchronization barrier like Power’s ISYNC, as well as other FENCEs for I/O operations. For ARMv8 [11], ARM switched to a multi-copy atomic memory model that provides a total memory order. The model is similar in spirit to RISC-V’s RVWMO,5 allowing for loads and stores to be annotated with ACQUIRE and RELEASE annotations.",
+      "bbox": [
+        271.75,
+        282.31,
+        684.21,
+        373.9
+      ]
+    },
+    {
+      "id": "p104b04",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "heading",
+      "en": "5.8 COMPARING MEMORY MODELS",
+      "bbox": [
+        271.75,
+        390.93,
+        539.2,
+        404.93
+      ]
+    },
+    {
+      "id": "p104b05",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "5.8.1 HOW DO RELAXED MEMORY MODELS RELATE TO EACH OTHER AND TSO AND SC? Recall that a memory consistency model Y is strictly more relaxed (weaker) than a memory consistency model X if all X executions (implementations) are also Y executions (implementations), but not vice versa. It is also possible that two memory consistency models are incomparable because both allow executions (implementations) precluded by the other.",
+      "bbox": [
+        271.75,
+        410.51,
+        684.21,
+        491.32
+      ]
+    },
+    {
+      "id": "p104b06",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "caption",
+      "en": "Figure 5.5 repeats a figure from the previous chapter where Power replaces the previously",
+      "bbox": [
+        298.65,
+        493.88,
+        684.2,
+        504.77
+      ]
+    },
+    {
+      "id": "p104b07",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "unspecified MC1, while MC2 could be Alpha, ARM, RMO, or XC. How do they compare?",
+      "bbox": [
+        271.75,
+        507.33,
+        677.62,
+        518.22
+      ]
+    },
+    {
+      "id": "p104b08",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "• Power is more relaxed than TSO which is more relaxed than SC.",
+      "bbox": [
+        287.97,
+        525.24,
+        579.84,
+        536.13
+      ]
+    },
+    {
+      "id": "p104b09",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "• Alpha, ARM, RMO, and XC are more relaxed than TSO which is more relaxed than SC.",
+      "bbox": [
+        287.97,
+        544.91,
+        684.2,
+        555.8
+      ]
+    },
+    {
+      "id": "p104b10",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "• Power is assumed to be incomparable with respect to Alpha, ARM, RMO, and XC until someone proves that one is more relaxed than the other or that the two are equivalent.",
+      "bbox": [
+        287.97,
+        564.57,
+        684.2,
+        588.91
+      ]
+    },
+    {
+      "id": "p104b11",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "Mador-Haim et al. [26] developed an automated technique for comparing memory consistency models—including SC, TSO, and RMO—but they did not consider ARM or Power. ARM and Power may be equivalent, but we await a proof.",
+      "bbox": [
+        271.75,
+        595.93,
+        684.21,
+        633.72
+      ]
+    },
+    {
+      "id": "p104b12",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "5.8.2 HOW GOOD ARE RELAXED MODELS? As discussed in the previous chapter, a good memory consistency model should possess Sarita Adve’s 3Ps plus our fourth P.",
+      "bbox": [
+        271.75,
+        649.67,
+        684.2,
+        691.13
+      ]
+    },
+    {
+      "id": "p104b13",
+      "pdf_page": 104,
+      "book_page": "82",
+      "kind": "paragraph",
+      "en": "5but was defined before RVWMO was specified",
+      "bbox": [
+        286.97,
+        698.39,
+        447.75,
+        708.06
+      ]
+    },
+    {
+      "id": "p105b01",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "SC SC",
+      "bbox": [
+        378.05,
+        201.71,
+        546.03,
+        209.71
+      ]
+    },
+    {
+      "id": "p105b02",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "Power TSO MC2 Power TSO MC2",
+      "bbox": [
+        325.84,
+        219.67,
+        588.41,
+        229.0
+      ]
+    },
+    {
+      "id": "p105b03",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "ALL ALL",
+      "bbox": [
+        370.07,
+        260.46,
+        543.99,
+        268.46
+      ]
+    },
+    {
+      "id": "p105b04",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "(a) Executions (b) Implementations (same as (a))",
+      "bbox": [
+        345.14,
+        278.07,
+        602.58,
+        288.07
+      ]
+    },
+    {
+      "id": "p105b05",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "caption",
+      "en": "Figure 5.5: Comparing memory consistency models.",
+      "bbox": [
+        251.8,
+        303.72,
+        480.4,
+        314.61
+      ]
+    },
+    {
+      "id": "p105b06",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "• Programmability: Relaxed model programmability is acceptable for those who use “SC for DRF.” Deeply understanding a relaxed model (e.g., to write compilers and runtime systems) is difficult.",
+      "bbox": [
+        268.02,
+        335.48,
+        664.25,
+        373.27
+      ]
+    },
+    {
+      "id": "p105b07",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "• Performance: Relaxed memory models can offer better performance than TSO, but the difference is smaller for many core micro-architectures.",
+      "bbox": [
+        268.02,
+        383.51,
+        664.25,
+        407.85
+      ]
+    },
+    {
+      "id": "p105b08",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "• Portability: Porting while staying within “SC for DRF” is manageable. Pushing the limits of relaxed models, especially those that are incomparable, is hard.",
+      "bbox": [
+        268.02,
+        418.09,
+        664.25,
+        442.43
+      ]
+    },
+    {
+      "id": "p105b09",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "• Precise: Many relaxed models are only informally defined. Moreover, formal definitions of relaxed models tend to be obtuse.",
+      "bbox": [
+        268.02,
+        452.67,
+        664.25,
+        477.01
+      ]
+    },
+    {
+      "id": "p105b10",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "The bottom line is that … there is no simple bottom line.",
+      "bbox": [
+        278.7,
+        486.96,
+        528.48,
+        497.85
+      ]
+    },
+    {
+      "id": "p105b11",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "heading",
+      "en": "5.9 HIGH-LEVEL LANGUAGE MODELS",
+      "bbox": [
+        251.8,
+        515.03,
+        535.46,
+        529.03
+      ]
+    },
+    {
+      "id": "p105b12",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "The previous two chapters and this chapter so far address memory consistency models at the interface between hardware and low-level software, discussing (a) what software authors should expect and (b) what hardware implementors may do.",
+      "bbox": [
+        251.8,
+        536.46,
+        664.25,
+        574.25
+      ]
+    },
+    {
+      "id": "p105b13",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "It is also important to define memory models for high-level languages (HLLs), specifying (a) what HLL software authors should expect and (b) what implementors of compilers, runtime systems, and hardware may do. Figure 5.6 illustrates the difference between (a) high-level and (b) low-level memory models.",
+      "bbox": [
+        251.8,
+        576.81,
+        664.25,
+        628.05
+      ]
+    },
+    {
+      "id": "p105b14",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "Because many HLLs emerged in a largely single-threaded world, their specifications omitted a memory model. (Do you remember one in Kernighan and Ritchie [25]?) Java was perhaps the first mainstream language to have a memory model, but the first version had some issues [30].",
+      "bbox": [
+        251.8,
+        630.61,
+        664.26,
+        668.39
+      ]
+    },
+    {
+      "id": "p105b15",
+      "pdf_page": 105,
+      "book_page": "83",
+      "kind": "paragraph",
+      "en": "Recently, however, memory models have been re-specified for Java [27] and specified for C [14]. Fortunately, the cornerstone of both models is a familiar one—SC for DRF [3]— CC provided in part by Sarita Adve’s coauthorship of all three papers. To allow synchronization races",
+      "bbox": [
+        251.8,
+        670.95,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p106b01",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "C++ Program Java Program",
+      "bbox": [
+        451.4,
+        182.03,
+        644.67,
+        192.03
+      ]
+    },
+    {
+      "id": "p106b02",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "(a)",
+      "bbox": [
+        383.05,
+        199.32,
+        393.92,
+        209.32
+      ]
+    },
+    {
+      "id": "p106b03",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "Java Compiler C++ Compiler Low-Level Program Java Runtime (b)",
+      "bbox": [
+        273.98,
+        221.94,
+        646.51,
+        266.96
+      ]
+    },
+    {
+      "id": "p106b04",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "Hardware",
+      "bbox": [
+        468.79,
+        284.45,
+        508.81,
+        294.45
+      ]
+    },
+    {
+      "id": "p106b05",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "caption",
+      "en": "Figure 5.6: (a) High-level language (HLL) and (b) hardware memory models.",
+      "bbox": [
+        271.75,
+        311.72,
+        611.63,
+        322.61
+      ]
+    },
+    {
+      "id": "p106b06",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "but not data races, programmers must tag variables as synchronization when it is possible they can race, using keywords such as atomic, or create synchronization locks implicitly with Java’s monitor-like synchronized methods. In all cases, implementations are free to reorder references as long as data-race-free programs obey SC.",
+      "bbox": [
+        271.75,
+        348.85,
+        684.21,
+        400.09
+      ]
+    },
+    {
+      "id": "p106b07",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "In particular, implementations can reorder or eliminate memory accesses between synchronization accesses. Figure 5.7 illustrates an example. Figure 5.7(a) presents the HLL code, and Figure 5.7(b) and (c) show executions on core C1 both without register allocation and with variable A allocated in register r1 so that load L3 is reordered and merged with load L1. This reordering is correct because, with “SC for DRF,” no other thread “can be looking.” In addition to register allocation, many, if not most, compiler and runtime optimizations—such as constant propagation, common subexpression elimination, loop fission/fusion, loop invariant code motion, software pipelining, and instruction scheduling—can reorder memory accesses. Because “SC for DRF” allows these optimizations, compilers and runtime systems can produce code with performance that is comparable to single-threaded code.",
+      "bbox": [
+        271.75,
+        402.65,
+        684.21,
+        534.58
+      ]
+    },
+    {
+      "id": "p106b08",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "What if an HLL program has data races by accident or on purpose? Or what if expert programmers want to impose minimal ordering (or even no ordering) on synchronization operations, exploiting application knowledge? In this case, another thread could observe a non-SC execution. For Figure 5.7, core C2 (not shown) could update A and C and have core C1 observe the update to C but not A, which has been register allocated. This execution violates SC at the HLL level.",
+      "bbox": [
+        271.75,
+        537.14,
+        684.21,
+        615.28
+      ]
+    },
+    {
+      "id": "p106b09",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "More generally, what are the limits on what threads can observe with data races or with non-SC synchronization operations? Specifically, Java requires security guarantees for all programs; C++, for performance considerations, supports a variety of synchronization operations (dubbed low-level atomics) that are weaker than SC. For these reasons, Java and C++ must specify behavior in all cases with the following goals:",
+      "bbox": [
+        271.75,
+        617.84,
+        684.21,
+        682.53
+      ]
+    },
+    {
+      "id": "p106b10",
+      "pdf_page": 106,
+      "book_page": "84",
+      "kind": "paragraph",
+      "en": "1. allow all optimizations for high-performance DRF programs,",
+      "bbox": [
+        283.46,
+        697.85,
+        565.16,
+        708.74
+      ]
+    },
+    {
+      "id": "p107b01",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "paragraph",
+      "en": "Alternates for Core C1",
+      "bbox": [
+        292.6,
+        178.82,
+        385.72,
+        188.82
+      ]
+    },
+    {
+      "id": "p107b02",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "paragraph",
+      "en": "(a) High-Level Language B = 2*A; D = C - A;",
+      "bbox": [
+        292.6,
+        202.82,
+        395.89,
+        236.82
+      ]
+    },
+    {
+      "id": "p107b03",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "paragraph",
+      "en": "Program Order (<p) Memory Order (<m) (b) Naive L1: r1 = A; L1: r1 = A X1: r2 = 2*r1; S1: B = r2 S1: B = r2; L2: r3 = C L2: r3 = C L3: r1 = A; L3: r1 = A X2: r2 = r3 - r1; S2: D = r2 S2: D = r2;",
+      "bbox": [
+        292.6,
+        254.43,
+        628.99,
+        356.82
+      ]
+    },
+    {
+      "id": "p107b04",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "paragraph",
+      "en": "(c) Register Allocation L1, L3: r1 = A; X1: r2 = 2*r1; L1: r1 = A S1: B = r2; S1: B = r2 L2: r3 = C; L2: r3 = C /* L3: r1 = A; moved */ X2: r2 = r3 - r1; L3: r1 = A S2: D = r2; S2: D = r2",
+      "bbox": [
+        292.6,
+        382.82,
+        520.47,
+        482.67
+      ]
+    },
+    {
+      "id": "p107b05",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "caption",
+      "en": "Figure 5.7: Register allocation affects memory order.",
+      "bbox": [
+        251.8,
+        522.72,
+        480.66,
+        533.61
+      ]
+    },
+    {
+      "id": "p107b06",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "paragraph",
+      "en": "2. unambiguously, specify the allowed behavior of all programs, and",
+      "bbox": [
+        263.51,
+        559.87,
+        560.4,
+        570.76
+      ]
+    },
+    {
+      "id": "p107b07",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "paragraph",
+      "en": "3. make this unambiguous specification simple.",
+      "bbox": [
+        263.51,
+        590.92,
+        471.61,
+        601.81
+      ]
+    },
+    {
+      "id": "p107b08",
+      "pdf_page": 107,
+      "book_page": "85",
+      "kind": "paragraph",
+      "en": "In our judgment, the 2005 Java memory model made substantial progress, arguably succeeding on (2), mostly succeeding on (1)—it disallowed some compiler optimizations [32]—but not on (3). Fortunately, most programmers can use “SC for DRF” and not suffer the consequences of the “dark corners” of the Java memory model. Authors of compilers and runtime software, however, must confront them at some level. Consider this “dark corner” that must be understood: regardless of optimizations, a load to address A must always return a value stored to address A at some time (perhaps at initialization) and not a value “out of thin air” as illus-",
+      "bbox": [
+        251.8,
+        617.16,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p108b01",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "trated in Table 5.13. Unfortunately, this is not the only example of complexity that must be confronted [12].",
+      "bbox": [
+        271.75,
+        174.72,
+        684.2,
+        199.05
+      ]
+    },
+    {
+      "id": "p108b02",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "Satisfying all of the three requirements from above is still an open problem and actively researched in the context of C++ [13, 17].",
+      "bbox": [
+        271.75,
+        201.61,
+        684.2,
+        225.95
+      ]
+    },
+    {
+      "id": "p108b03",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "Flashback to Quiz Question 5: A programmer who writes properly synchronized code relative to the high-level language consistency model (e.g,. Java) does not need to consider the architecture’s memory consistency model. True or false? Answer: It depends. For typical application programmers, the answer is True, because their programs behave as expected (SC is expected). For the programmers of compilers and runtime systems, the answer is False.",
+      "bbox": [
+        277.9,
+        263.12,
+        680.06,
+        341.26
+      ]
+    },
+    {
+      "id": "p108b04",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "Thus, HLLs, such as Java and C , adopt the relaxed memory model approach of “SC CC for DRF.” When these HLLs run on hardware, should the hardware’s memory model also be relaxed? On one hand, (a) relaxed hardware can give the most performance, and (b) compilers and runtime software need only translate the HLL’s synchronizations operations into the particular hardware’s low-level synchronization operations and FENCEs to provide the necessary ordering. On the other hand, (a) SC and TSO can give good performance, and (b) compilers and runtime software can generate more portable code without FENCEs from incomparable memory models. Although the debate is not settled, it is clear that relaxed HLL models do not require relaxed hardware.",
+      "bbox": [
+        271.75,
+        368.53,
+        684.21,
+        487.02
+      ]
+    },
+    {
+      "id": "p108b05",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "heading",
+      "en": "5.10 REFERENCES",
+      "bbox": [
+        271.75,
+        504.78,
+        404.79,
+        518.78
+      ]
+    },
+    {
+      "id": "p108b06",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "[1] (Don’t) Do It Yourself: Weak Memory Models. http://diy.inria.fr/",
+      "bbox": [
+        277.19,
+        526.92,
+        615.37,
+        537.94
+      ]
+    },
+    {
+      "id": "p108b07",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "[2] S. V. Adve and K. Gharachorloo. Shared memory consistency models: A tutorial. IEEE Computer, 29(12):66–76, December 1996. DOI: 10.1109/2.546611. 81",
+      "bbox": [
+        277.19,
+        549.58,
+        684.21,
+        573.92
+      ]
+    },
+    {
+      "id": "p108b08",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "[3] S. V. Adve and M. D. Hill. Weak ordering—a new definition. In Proc. of the 17th Annual International Symposium on Computer Architecture, pp. 2–14, May 1990. DOI: 10.1109/isca.1990.134502. 68, 81, 83",
+      "bbox": [
+        277.19,
+        585.55,
+        684.2,
+        623.34
+      ]
+    },
+    {
+      "id": "p108b09",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "[4] S. V. Adve and M. D. Hill. A unified formalization of four shared-memory models. IEEE Transactions on Parallel and Distributed Systems, June 1993. DOI: 10.1109/71.242161. 81",
+      "bbox": [
+        277.19,
+        634.98,
+        684.21,
+        659.32
+      ]
+    },
+    {
+      "id": "p108b10",
+      "pdf_page": 108,
+      "book_page": "86",
+      "kind": "paragraph",
+      "en": "[5] S. V. Adve, M. D. Hill, B. P. Miller, and R. H. B. Netzer. Detecting data races on weak memory systems. In Proc. of the 18th Annual International Symposium on Computer Architecture, pp. 234–43, May 1991. DOI: 10.1145/115952.115976. 71",
+      "bbox": [
+        277.19,
+        670.95,
+        684.21,
+        708.74
+      ]
+    },
+    {
+      "id": "p109b01",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[6] J. Alglave, L. Maranget, S. Sarkar, and P. Sewell. Fences in weak memory models. In Proc. of the International Conference on Computer Aided Verification, July 2010. DOI: 10.1007/978-3-642-14295-6_25.",
+      "bbox": [
+        257.24,
+        174.72,
+        664.25,
+        212.5
+      ]
+    },
+    {
+      "id": "p109b02",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[7] J. Alglave, L. Maranget, S. Sarkar, and P. Sewell. Litmus: Running tests against hardware. In Proc. of the International Conference on Tools and Algorithms for the Construction and Analysis of Systems, March 2011. DOI: 10.1007/978-3-642-19835-9_5.",
+      "bbox": [
+        257.24,
+        223.91,
+        664.26,
+        261.7
+      ]
+    },
+    {
+      "id": "p109b03",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[8] J. Alglave, L. Maranget, P.E. McKenney, A. Parri, and A. Stern. Frightening small children and disconcerting grown-ups: Concurrency in the Linux kernel. In ASPLOS, 2018. DOI: 10.1145/3296957.3177156. 82",
+      "bbox": [
+        257.24,
+        273.11,
+        664.25,
+        310.9
+      ]
+    },
+    {
+      "id": "p109b04",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[9] ARM. ARM Architecture Reference Manual, ARMv7-A and ARMv7-R Edition Errata Markup. Downloaded January 13, 2011. 81, 82",
+      "bbox": [
+        257.24,
+        322.31,
+        664.26,
+        346.65
+      ]
+    },
+    {
+      "id": "p109b05",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[10] ARM. ARM v7A+R Architectural Reference Manual. Available from ARM Ltd. 81, 82",
+      "bbox": [
+        251.8,
+        358.06,
+        651.04,
+        368.95
+      ]
+    },
+    {
+      "id": "p109b06",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[11] ARM. ARM v8 Architectural Reference Manual. Available from ARM Ltd. 82",
+      "bbox": [
+        251.8,
+        380.36,
+        614.87,
+        391.25
+      ]
+    },
+    {
+      "id": "p109b07",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[12] M. Batty, K. Memarian, K. Nienhuis, J. Pichon-Pharabod, and P. Sewell. The problem of programming language concurrency semantics. In ESOP, 2015. DOI: 10.1007/978-3- 662-46669-8_12. 86",
+      "bbox": [
+        251.8,
+        402.66,
+        664.26,
+        440.45
+      ]
+    },
+    {
+      "id": "p109b08",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[13] M. Batty, S. Owens, S. Sarkar, P. Sewell, and T. Weber. Mathematizing C++ concurrency. In POPL, 2011. DOI: 10.1145/1926385.1926394. 86",
+      "bbox": [
+        251.8,
+        451.86,
+        664.26,
+        476.2
+      ]
+    },
+    {
+      "id": "p109b09",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[14] H.-J. Boehm and S. V. Adve. Foundations of the C concurrency memory model. In CC Proc. of the Conference on Programming Language Design and Implementation, June 2008. DOI: 10.1145/1375581.1375591. 83",
+      "bbox": [
+        251.8,
+        487.61,
+        664.25,
+        525.4
+      ]
+    },
+    {
+      "id": "p109b10",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[15] H. W. Cain and M. H. Lipasti. Memory ordering: A value-based approach. In Proc. of the 31st Annual International Symposium on Computer Architecture, June 2004. DOI: 10.1109/isca.2004.1310766. 58",
+      "bbox": [
+        251.8,
+        536.81,
+        664.26,
+        574.6
+      ]
+    },
+    {
+      "id": "p109b11",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[16] L. Ceze, J. Tuck, P. Montesinos, and J. Torrellas. BulkSC: Bulk enforcement of sequential consistency. In Proc. of the 34th Annual International Symposium on Computer Architecture, June 2007. DOI: 10.1145/1250662.1250697. 68",
+      "bbox": [
+        251.8,
+        586.01,
+        664.25,
+        623.8
+      ]
+    },
+    {
+      "id": "p109b12",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[17] S. Chakraborty and V. Vafeiadis. Grounding thin-air reads with event structures. In POPL,",
+      "bbox": [
+        251.8,
+        635.21,
+        664.25,
+        646.1
+      ]
+    },
+    {
+      "id": "p109b13",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "2019. DOI: 10.1145/3290383. 86",
+      "bbox": [
+        275.38,
+        648.65,
+        425.15,
+        659.54
+      ]
+    },
+    {
+      "id": "p109b14",
+      "pdf_page": 109,
+      "book_page": "87",
+      "kind": "paragraph",
+      "en": "[18] M. Dubois, C. Scheurich, and F. A. Briggs. Memory access buffering in multiprocessors. In Proc. of the 13th Annual International Symposium on Computer Architecture, pp. 434–42, June 1986. DOI: 10.1145/285930.285991. 81",
+      "bbox": [
+        251.8,
+        670.95,
+        664.26,
+        708.74
+      ]
+    },
+    {
+      "id": "p110b01",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[19] S. Flur, S. Sarkar, C. Pulte, K. Nienhuis, L. Maranget, K. E. Gray, A. Sezgin, M. Batty, and P. Sewell. Mixed-size concurrency: ARM, POWER, C/C++11, and SC. In Proc. of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages, pp. 429–442, January 2017. DOI: 10.1145/3009837.3009839. 81",
+      "bbox": [
+        271.75,
+        174.72,
+        684.21,
+        225.95
+      ]
+    },
+    {
+      "id": "p110b02",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[20] K. Gharachorloo, D. Lenoski, J. Laudon, P. Gibbons, A. Gupta, and J. Hennessy. Memory consistency and event ordering in scalable shared-memory. In Proc. of the 17th Annual International Symposium on Computer Architecture, pp. 15–26, May 1990. DOI: 10.1109/isca.1990.134503. 72, 81",
+      "bbox": [
+        271.75,
+        236.95,
+        684.21,
+        288.18
+      ]
+    },
+    {
+      "id": "p110b03",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[21] C. Gniady, B. Falsafi, and T. Vijaykumar. Is SC ILP RC? In Proc. of the 26th C D Annual International Symposium on Computer Architecture, pp. 162–71, May 1999. DOI: 10.1109/isca.1999.765948. 58",
+      "bbox": [
+        271.75,
+        299.18,
+        684.2,
+        336.96
+      ]
+    },
+    {
+      "id": "p110b04",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[22] M. D. Hill. Multiprocessors should support simple memory consistency models. IEEE Computer, 31(8):28–34, August 1998. DOI: 10.1109/2.707614. 66",
+      "bbox": [
+        271.75,
+        347.96,
+        684.21,
+        372.3
+      ]
+    },
+    {
+      "id": "p110b05",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[23] IBM. Power ISA Version 2.06 Revision B. http://www.power.org/resources/ downloads/ PowerISA_V2.06B_V2_PUBLIC.pdf, July 2010. 78, 81",
+      "bbox": [
+        271.75,
+        383.15,
+        684.2,
+        407.63
+      ]
+    },
+    {
+      "id": "p110b06",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[24] IBM Corporation. Book E: Enhanced PowerPC Architecture, Version 0.91, July 21, 2001. 78",
+      "bbox": [
+        271.75,
+        418.62,
+        684.2,
+        429.51
+      ]
+    },
+    {
+      "id": "p110b07",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[25] B. W. Kernighan and D. M. Ritchie. The C Programming Language, 2nd ed., Prentice Hall,",
+      "bbox": [
+        271.75,
+        440.5,
+        684.2,
+        451.39
+      ]
+    },
+    {
+      "id": "p110b08",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "1988. 83",
+      "bbox": [
+        295.33,
+        453.95,
+        334.73,
+        464.84
+      ]
+    },
+    {
+      "id": "p110b09",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[26] S. Mador-Haim, R. Alur, and M. M. K. Martin. Generating litmus tests for contrasting memory consistency models. In Proc. of the 22nd International Conference on Computer Aided Verification, July 2010. DOI: 10.1007/978-3-642-14295-6_26. 82",
+      "bbox": [
+        271.75,
+        475.83,
+        684.2,
+        513.62
+      ]
+    },
+    {
+      "id": "p110b10",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[27] J. Manson, W. Pugh, and S. V. Adve. The Java memory model. In Proc. of the 32nd Symposium on Principles of Programming Languages, January 2005. http://dx.doi.org/10. 1145/1040305.1040336.1040336 DOI: 10.1145/1040305.1040336. 83",
+      "bbox": [
+        271.75,
+        524.61,
+        684.2,
+        562.4
+      ]
+    },
+    {
+      "id": "p110b11",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[28] P. E. McKenney. Is Parallel Programming Hard, And, If So, What Can You Do About It? http://kernel.org/pub/linux/kernel/people/paulmck/perfbook/perfbook. 2011.01.%05a.pd, 2011. 81",
+      "bbox": [
+        271.75,
+        573.39,
+        684.21,
+        611.18
+      ]
+    },
+    {
+      "id": "p110b12",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[29] A. Meixner and D. J. Sorin. Dynamic verification of memory consistency in cachecoherent multithreaded computer architectures. In Proc. of the International Conference on Dependable Systems and Networks, pp. 73–82, June 2006. DOI: 10.1109/dsn.2006.29. 81",
+      "bbox": [
+        271.75,
+        622.17,
+        684.2,
+        659.96
+      ]
+    },
+    {
+      "id": "p110b13",
+      "pdf_page": 110,
+      "book_page": "88",
+      "kind": "paragraph",
+      "en": "[30] W. Pugh. The Java memory model is fatally flawed. Concurrency: Practice and Experience, 12(1):1–11, 2000. DOI: 10.1002/1096-9128(200005)12:6%3C445::aidcpe484%3E3.0.co;2-a. 83",
+      "bbox": [
+        271.75,
+        670.95,
+        684.2,
+        708.74
+      ]
+    },
+    {
+      "id": "p111b01",
+      "pdf_page": 111,
+      "book_page": "89",
+      "kind": "paragraph",
+      "en": "[31] The RISC-V Instruction Set Manual, Volume I: Unprivileged ISA https:",
+      "bbox": [
+        251.8,
+        174.58,
+        664.25,
+        185.61
+      ]
+    },
+    {
+      "id": "p111b02",
+      "pdf_page": 111,
+      "book_page": "89",
+      "kind": "paragraph",
+      "en": "//github.com/riscv/riscv-isa-manual/releases/download/draft-20190521- 21c6a14/riscv-spec.pdf DOI: 10.21236/ada605735. 77, 78",
+      "bbox": [
+        275.38,
+        188.03,
+        655.81,
+        212.5
+      ]
+    },
+    {
+      "id": "p111b03",
+      "pdf_page": 111,
+      "book_page": "89",
+      "kind": "paragraph",
+      "en": "[32] J. Ševčík, and D. Aspinall. On validity of program transformations in the Java memory",
+      "bbox": [
+        251.8,
+        223.03,
+        664.25,
+        233.92
+      ]
+    },
+    {
+      "id": "p111b04",
+      "pdf_page": 111,
+      "book_page": "89",
+      "kind": "paragraph",
+      "en": "model. In ECOOP, 2008. DOI: 10.1007/978-3-540-70592-5_3. 85",
+      "bbox": [
+        275.38,
+        236.48,
+        573.58,
+        247.37
+      ]
+    },
+    {
+      "id": "p111b05",
+      "pdf_page": 111,
+      "book_page": "89",
+      "kind": "paragraph",
+      "en": "[33] R. L. Sites, Ed. Alpha Architecture Reference Manual. Digital Press, 1992. 58, 81",
+      "bbox": [
+        251.8,
+        257.9,
+        623.6,
+        268.79
+      ]
+    },
+    {
+      "id": "p111b06",
+      "pdf_page": 111,
+      "book_page": "89",
+      "kind": "paragraph",
+      "en": "[34] D. L. Weaver and T. Germond, Eds. SPARC Architecture Manual (Version 9). PTR Prentice",
+      "bbox": [
+        251.8,
+        279.32,
+        664.26,
+        290.21
+      ]
+    },
+    {
+      "id": "p111b07",
+      "pdf_page": 111,
+      "book_page": "89",
+      "kind": "paragraph",
+      "en": "Hall, 1994. 58, 81, 82",
+      "bbox": [
+        275.38,
+        292.77,
+        372.73,
+        303.66
+      ]
+    }
+  ]
+}

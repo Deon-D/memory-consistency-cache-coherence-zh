@@ -1,0 +1,43 @@
+{
+  "review_scope": "targeted semantic and source-layout sampling, plus complete structural coverage",
+  "short_translation_flags_reviewed": [
+    "p045b03",
+    "p079b02",
+    "p091b03",
+    "p092b02",
+    "p102b02",
+    "p188b06",
+    "p197b08",
+    "p245b03",
+    "p252b02",
+    "p252b03",
+    "p256b03",
+    "p257b04"
+  ],
+  "short_translation_review_result": "All flagged blocks preserve the source content; low Chinese-character ratios are explained by code, state labels, equations, timelines, or concise faithful prose.",
+  "cross_review_ch09_ch11": [
+    "p217b02",
+    "p239b07",
+    "p244b05",
+    "p254b04",
+    "p258b02",
+    "p274b07",
+    "p279b04",
+    "p280b04",
+    "p286b05"
+  ],
+  "cross_review_ch03_ch05": [
+    "p047b03-p047b09",
+    "p066b10",
+    "p066b12-p066b14",
+    "p081b07-p081b11",
+    "p083b16-p083b19",
+    "p093b02-p093b05",
+    "p097b05-p097b08",
+    "p099b12",
+    "p100b01"
+  ],
+  "cross_review_result": "No confirmed omissions, reversals of negation, loss of conditions, or reversed causal directions in the sampled passages. SC to TSO strike-throughs were checked against original PDF drawing lines.",
+  "protocol_table_review": "Original pages checked for Tables 8.1 through 8.9, including principal actions and column assignments. Transient A/D superscripts restored, OMAC AC superscript explained, and overly broad no-action statements in Chapter 7 narrowed to the applicable events. Original anomalies in Tables 6.4, 7.13, 7.17, 7.20 and 8.9 are retained or explicitly annotated.",
+  "final_build": "Complete edition rebuilt after the final protocol-table corrections. All 2379 source blocks have nonempty translations; HTML and EPUB link, resource, XML and source-ID checks passed."
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "p045b03",
+    "chapter": "ch03",
+    "type": "short_translation_review",
+    "words": 97,
+    "han": 71,
+    "en": "The value of SC is further revealed in Figure 3.3, which illustrates four executions of the program from Table 3.3. Figure 3.3a–c depict SC executions that correspond to the three intuitive outputs: (r1, r2) = (0, NEW), (NEW, 0), or (NEW, NEW). Note that Figure 3.3c depicts only one of the four possible SC executions that leads to (r1, r2) = (NEW, NEW); this execution is {S1, S2, L1, L2}, and the others are {S1, S2, L2, L1}, {S2, S1, L1, L2}, and {S2, S1, L2, L1}. Thus, across Figure 3.3a–c, there are six legal SC executions.",
+    "zh": "图3.3进一步体现了SC的价值，它展示表3.3中程序的四种执行。图3.3a—c为SC执行，对应三种直观结果：(r1, r2) = (0, NEW)、(NEW, 0)或(NEW, NEW)。注意，图3.3c仅给出产生(NEW, NEW)的四种SC执行之一，即{S1, S2, L1, L2}；其余三种为{S1, S2, L2, L1}、{S2, S1, L1, L2}和{S2, S1, L2, L1}。因此，图3.3a—c合计对应六种合法的SC执行。"
+  },
+  {
+    "id": "p079b02",
+    "chapter": "ch05",
+    "type": "short_translation_review",
+    "words": 82,
+    "han": 58,
+    "en": "Core C1 Core C2 Comments A1: acquire(lock) /* Begin Critical Section 1 */ Some loads L1i interleaved /* Arbitrary interleaving of L1i’s & S1j’s */ with some stores S1j /* End Critical Section 1 */ /* Handoff from critical section 1 */ R1: release(lock) A2: acquire(lock) /* To critical section 2 */ /* Begin Critical Section 2 */ Some loads L2i interleaved /* Arbitrary interleaving of L2i’s & S2j’s */ with some stores S2j /* End Critical Section 2 */ R2: release(lock)",
+    "zh": "核C1：\nA1: acquire(lock)\n/* 临界区1开始 */\n若干加载L1i与若干存储S1j任意交错\n/* 临界区1结束 */\nR1: release(lock)\n/* 从临界区1交接至临界区2 */\n核C2：\nA2: acquire(lock)\n/* 临界区2开始 */\n若干加载L2i与若干存储S2j任意交错\n/* 临界区2结束 */\nR2: release(lock)"
+  },
+  {
+    "id": "p091b03",
+    "chapter": "ch05",
+    "type": "short_translation_review",
+    "words": 65,
+    "han": 26,
+    "en": "Core C1 Core C2 Comments F11: FENCE /* Initially, data1 & data2 = 0 */ A11: acquire(lock) F12: FENCE S1: data1 = NEW; L1: r2 = data2; S2: data2 = NEW; L2: r1 = data1; /* Four Possible Outcomes under XC: F13: FENCE (r1, r2) = R11: release(lock) (0, 0), (0, NEW), (NEW, 0), or (NEW, NEW) F14: FENCE But has a Data Race */",
+    "zh": "核C1：F11: FENCE；A11: acquire(lock)；F12: FENCE；S1: data1 = NEW;；S2: data2 = NEW;；F13: FENCE；R11: release(lock)；F14: FENCE。\n核C2：L1: r2 = data2;；L2: r1 = data1;。\n注：初始时data1和data2均为0。XC允许四种结果：(r1, r2) = (0, 0)、(0, NEW)、(NEW, 0)或(NEW, NEW)。但该程序存在数据竞争。"
+  },
+  {
+    "id": "p092b02",
+    "chapter": "ch05",
+    "type": "short_translation_review",
+    "words": 114,
+    "han": 76,
+    "en": "Since Core C2 does no synchronization in Table 5.7, its loads can execute concurrently with Core C1’s stores. Since XC allows Core C1 to reorder stores S1 and S2 (or not) and Core C2 to reorder loads L1 and L2 (or not), four outcomes are possible wherein (r1, r2) = (0, 0), (0, NEW), (NEW, 0), or (NEW, NEW). Output (0, NEW) occurs, for example, if loads and stores execute in the sequence S2, L1, L2, and then S1 or the sequence L2, S1, S2, and then L1. However, this example includes two data races (S1 with L2 and S2 with L1) because Core C2 does not acquire the lock used by Core C1.",
+    "zh": "由于表5.7中的C2不同步，其加载可与C1的存储并发。XC允许C1重排或不重排S1与S2，也允许C2重排或不重排L1与L2，因此存在四种结果：(r1, r2) = (0, 0)、(0, NEW)、(NEW, 0)、(NEW, NEW)。例如，顺序S2、L1、L2、S1，或L2、S1、S2、L1，都可产生(0, NEW)。但该例有两处数据竞争：S1与L2、S2与L1，因为C2没有获取C1使用的锁。"
+  },
+  {
+    "id": "p102b02",
+    "chapter": "ch05",
+    "type": "short_translation_review",
+    "words": 82,
+    "han": 31,
+    "en": "Core C1 Core C2 Comments S1: data1 = NEW; /* Initially, data1 & data2 = 0 & fl ag ≠ SET */ S2: data2 = NEW; F1: LWSYNC /* Ensures S1 and S2 befor S3 */ S3: fl ag = SET; L1: r1 = fl ag; /* spin loop: L1 & B1 may repeat many times */ B1: if (r1 ≠ SET) goto L1; F2: LWSYNC /* Ensure B1 before L2 and L3 */ L2: r2 = data1; L3: r3 = data2;",
+    "zh": "核C1：S1: data1 = NEW;；S2: data2 = NEW;；F1: LWSYNC /* 保证S1与S2先于S3 */；S3: flag = SET;。\n核C2：L1: r1 = flag;；B1: if (r1 ≠ SET) goto L1;；F2: LWSYNC /* 保证B1先于L2、L3 */；L2: r2 = data1;；L3: r3 = data2;。\n注：初始时data1与data2均为0，flag ≠ SET；L1与B1的自旋循环可能重复许多次。"
+  },
+  {
+    "id": "p188b06",
+    "chapter": "ch08",
+    "type": "short_translation_review",
+    "words": 85,
+    "han": 60,
+    "en": "GetS to GetM to Ack to Req Ack to Req to mem, Ack to Req Ack to Req Owner, Owner, set send Putmake Owner to Ack to Req, Owner Req clear sharer, add Owner/I Req to Sharers, clear Owner /SD D S Stall Stall Remove Remove Remove Remove Copy data Req from Req from Req from Req from to LLC/ Sharers, Sharers, Sharers, Sharers, mem/S send Put- send Put- send Put- send Put- Ack to Req Ack to Req Ack to Req Ack to Req",
+    "zh": "M 状态续：PutS→返回 Put-Ack；所有者的 PutM+data→将数据复制到内存，返回 Put-Ack，清空 Owner/I；非所有者的 PutM 或 PutE→返回 Put-Ack。Sᴰ 状态：GetS、GetM 阻塞；PutS、非所有者的 PutM、非所有者的 PutE→从 Sharers 移除请求方并发送 Put-Ack；Data→将数据复制到 LLC/内存/S。"
+  },
+  {
+    "id": "p197b08",
+    "chapter": "ch08",
+    "type": "short_translation_review",
+    "words": 108,
+    "han": 37,
+    "en": "Core 0 Core 1 Core C-1 Set 0 Set 0 Set 0 Set 0 Set 0 Set 0 Set 0 Way 0 Way 1 Way 0 Way 1 Way 0 Way 1 Set 1 Set 1 Set 1 Set 1 Set 1 Set 1 Way 0 Way 1 Way 0 Way 1 Way 0 Way 1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Set S-1Set S-1Set S-1Set S-1 Set S-1Set S-1 Set S-1 Way 0 Way 1 Way 0 Way 1 Way 0 Way 1",
+    "zh": "核 0、核 1、…、核 C−1。每核缓存含组 0、组 1、…、组 S−1，每组均有路 0 和路 1。目录的相应组汇集各核对应组的所有路标签。"
+  },
+  {
+    "id": "p245b03",
+    "chapter": "ch10",
+    "type": "short_translation_review",
+    "words": 231,
+    "han": 164,
+    "en": "At time=1, a write request due to St1 is issued to the L2. At time=6, the write is performed at the L2 without any stalling although its lease (30) would not have expired then; L2 replies with a GWCT of 30 which is remembered at SM1 in its per-thread stall-time register. In a similar vein, a write request due to St2 is issued at time=12. At time=17, the write is performed at the L2 and the L2 replies back with a GWCT of 20. Upon receiving the GWCT, SM1 does not update its stall-time because the current value (30) is higher. The FENCE instruction is executed at time=23 and blocks thread T1 until its stall-time of 30. At time=31, a write-request due to St3 is issued to the L2 and the write is performed at the L2 at time=36. Because the lease for flag (35) would have expired, the L2 does not respond with a GWCT, and St3 completes at time=41. Meanwhile, at time=40, Ld1 attempts to read flag from the L1 but its lease would have expired at time=35. Therefore, a read request for flag is issued to the L2, reads SET from the L2 at time=45, and completes at time=50. In a similar vein, a read request due to Ld2 is issued at time=51, reads from L2 at time=56 and completes at time=57, returning the expected value of NEW.",
+    "zh": "time=1时，St1产生的写请求发往L2。time=6时，虽然租约（30）尚未到期，写入仍直接在L2执行，无须停顿；L2返回GWCT=30，SM1将其记入该线程的stall-time寄存器。类似地，St2的写请求于time=12发出，并在time=17于L2执行，L2返回GWCT=20。SM1收到后不更新stall-time，因为当前值30更大。time=23执行FENCE，将T1阻塞至stall-time所指的30。time=31，St3发出写请求；time=36在L2执行写入。此时flag的租约（35）已经到期，L2不再返回GWCT，St3在time=41完成。与此同时，time=40时Ld1尝试从L1读取flag，但其租约已经在time=35到期。因此，向L2发出flag读请求，在time=45从L2读到SET，并于time=50完成。类似地，Ld2在time=51发出读请求，time=56从L2读取，并于time=57完成，返回期望值NEW。"
+  },
+  {
+    "id": "p252b02",
+    "chapter": "ch10",
+    "type": "short_translation_review",
+    "words": 147,
+    "han": 93,
+    "en": "/* T1 and T2 (belonging to diff erent CTAs) are mapped to SM1 and SM2, respectively. fl ag = 0 and data1 = 0 are cached in L1s of both SM1 and SM2 */ Time SM1/L1 SM2/L1 L2 t St1 writes data1=NEW 1 and completes t Rel St2 issues Write- 2 back of data1 t data1=NEW written and Ack 3 sent back to L1 of SM1 t Ack received; fl ag=SET 4 written and its Writeback initiated t fl ag=SET written and Ack sent 5 back to L1 of SM1 t Rel St2 completes 6 t Acq Ld1 issues read for fl ag 7 t fl ag=SET read and sent to L1 8 of SM2 t value received; data1 self-invali- 9 dated; Acq Ld1 completes t Ld2 issues read for data1 10 t data1=NE W read and sent to 11 L1 of SM2 t Ld2 completes 12",
+    "zh": "/* T1和T2属于不同CTA，分别映射到SM1和SM2。SM1和SM2的L1都缓存了flag = 0和data1 = 0。*/\n时间　SM1/L1　SM2/L1　L2\nt₁　St1写入data1=NEW并完成\nt₂　释放St2发起data1的Write-back\nt₃　写入data1=NEW，向SM1的L1返回Ack\nt₄　收到Ack；写入flag=SET，并发起其Write-back\nt₅　写入flag=SET，向SM1的L1返回Ack\nt₆　释放St2完成\nt₇　获取Ld1发出flag读请求\nt₈　读出flag=SET并发送给SM2的L1\nt₉　收到值；data1自无效化；获取Ld1完成\nt₁₀　Ld2发出data1读请求\nt₁₁　读出data1=NEW并发送给SM2的L1\nt₁₂　Ld2完成"
+  },
+  {
+    "id": "p252b03",
+    "chapter": "ch10",
+    "type": "short_translation_review",
+    "words": 184,
+    "han": 134,
+    "en": "the cache blocks containing data1 and flag are cached in the L1s of both SM1 and SM2. We illustrate a timeline of events in Table 10.14. At time=t , St1 is performed, causing NEW to be 1 written to data1 cached in SM1’s L1. At time=t , St2 (marked release) causes all of the dirty 2 blocks in SM1’s L1 to be written to the L2. Therefore, data1 is written to the L2 at time=t . Then, 3 at time=t , the release write is performed, causing SET to be written to flag cached in SM1’s L1 4 and subsequently written back to the L2 at time=t . At time=t , Ld1 (marked acquire) issues a 5 7 read for flag, causing flag=SET to be read from the L2. At time=t , when the value is received, 9 all of the valid blocks in SM2’s L1, except the block read by the acquire, are self-invalidated. Thus, data1 is self-invalidated. At time=t , Ld2 causes a read request for data1 to be sent to the 10 L2 and the up-to-date value of NEW is read.",
+    "zh": "包含data1和flag的缓存块同时驻留在SM1和SM2的L1中。表10.14展示了事件时间线。在time=t₁，St1执行，将NEW写入SM1的L1中缓存的data1。time=t₂，标记为释放的St2使SM1的L1中全部脏块写回L2，因此data1于time=t₃写入L2。然后，time=t₄执行释放写入，将SET写入SM1的L1中的flag，并于time=t₅进一步写回L2。time=t₇，标记为获取的Ld1发出flag读请求，从L2读到flag=SET。time=t₉收到该值时，SM2的L1中除获取所读的块以外的全部有效块自无效化，因此data1被置为无效。time=t₁₀，Ld2向L2发出data1读请求，读到最新值NEW。"
+  },
+  {
+    "id": "p256b03",
+    "chapter": "ch10",
+    "type": "short_translation_review",
+    "words": 170,
+    "han": 118,
+    "en": "/* T1 and T2 (belonging to diff erent CTAs) are mapped to SM1 and SM2, respectively. fl ag = 0 and data1 = 0 are cached in L1s of both SM1 and SM2 */ Time SM1/L1 SM2/L1 L2 t St1 writes data1=NEW 1 and completes t Rel St2 issues ownership 2 request for fl ag t ownership for fl ag obtained; 3 and sent to SM1 t ownership received; 4 fl ag=SET written and St2 completes t Acq Ld1 issues read for fl ag 5 t write-back request for fl ag 6 issued to L1 of SM1 (since it owns fl ag) t (before responding with 7 fl ag) write-back of data1 initiated t data1=NEW written and Ack 8 sent to L1 of SM1 t Ack received; fl ag=SET 9 sent to L2 t fl ag value written and sent to 10 L1 of SM2 t Acq Ld1 completes 11 t Ld2 issues read for data1 12 t data1=NEW read; sent to L1 13 of SM2 t Ld2 completes 14",
+    "zh": "/* T1和T2属于不同CTA，分别映射到SM1和SM2。SM1和SM2的L1都缓存了flag = 0和data1 = 0。*/\n时间　SM1/L1　SM2/L1　L2\nt₁　St1写入data1=NEW并完成\nt₂　释放St2发出flag所有权请求\nt₃　取得flag所有权并授予SM1\nt₄　收到所有权；写入flag=SET，St2完成\nt₅　获取Ld1发出flag读请求\nt₆　向SM1的L1发出flag写回请求，因为它拥有flag\nt₇　在返回flag之前，先发起data1写回\nt₈　写入data1=NEW，向SM1的L1返回Ack\nt₉　收到Ack；向L2发送flag=SET\nt₁₀　写入flag值，并发送给SM2的L1\nt₁₁　获取Ld1完成\nt₁₂　Ld2发出data1读请求\nt₁₃　读出data1=NEW并发送给SM2的L1\nt₁₄　Ld2完成"
+  },
+  {
+    "id": "p257b04",
+    "chapter": "ch10",
+    "type": "short_translation_review",
+    "words": 88,
+    "han": 61,
+    "en": "/* Both T1 and T2, belonging to the same CTAs, are mapped to SM1. fl ag = 0 and data1 = 0 are cached in SM1’s L1. */ Time T1 (SM1/L1) T2 (SM1/L1) L2 t St1 writes data1=NEW 1 and completes t Rel St2 issues ownership 2 request t ownership for flag obtained 3 and sent to SM1 t ownership received; 4 fl ag=SET written and St2 completes t Acq Ld1 reads fl ag=SET from 5 L1 and completes t Ld2 reads data1=NEW from 6 L1 and completes",
+    "zh": "/* T1和T2属于同一CTA，均映射到SM1。SM1的L1缓存了flag = 0和data1 = 0。*/\n时间　T1（SM1/L1）　T2（SM1/L1）　L2\nt₁　St1写入data1=NEW并完成\nt₂　释放St2发出所有权请求\nt₃　取得flag所有权并授予SM1\nt₄　收到所有权；写入flag=SET，St2完成\nt₅　获取Ld1从L1读到flag=SET并完成\nt₆　Ld2从L1读到data1=NEW并完成"
+  }
+]

@@ -1,0 +1,118 @@
+{
+  "edition": "complete",
+  "source_pdf_pages": 296,
+  "chapters": [
+    {
+      "chapter": "front",
+      "blocks": 152,
+      "translated": 152,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 4599
+    },
+    {
+      "chapter": "ch01",
+      "blocks": 54,
+      "translated": 54,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 5422
+    },
+    {
+      "chapter": "ch02",
+      "blocks": 70,
+      "translated": 70,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 4120
+    },
+    {
+      "chapter": "ch03",
+      "blocks": 215,
+      "translated": 215,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 10326
+    },
+    {
+      "chapter": "ch04",
+      "blocks": 173,
+      "translated": 173,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 5898
+    },
+    {
+      "chapter": "ch05",
+      "blocks": 356,
+      "translated": 356,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 13210
+    },
+    {
+      "chapter": "ch06",
+      "blocks": 122,
+      "translated": 122,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 7955
+    },
+    {
+      "chapter": "ch07",
+      "blocks": 280,
+      "translated": 280,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 17691
+    },
+    {
+      "chapter": "ch08",
+      "blocks": 293,
+      "translated": 293,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 19299
+    },
+    {
+      "chapter": "ch09",
+      "blocks": 146,
+      "translated": 146,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 10809
+    },
+    {
+      "chapter": "ch10",
+      "blocks": 335,
+      "translated": 335,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 18551
+    },
+    {
+      "chapter": "ch11",
+      "blocks": 173,
+      "translated": 173,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 10586
+    },
+    {
+      "chapter": "bio",
+      "blocks": 10,
+      "translated": 10,
+      "missing": [],
+      "extra": [],
+      "chinese_characters": 684
+    }
+  ],
+  "total_blocks": 2379,
+  "translated_blocks": 2379,
+  "original_page_images": 294,
+  "figure_regions": 148,
+  "formula_blocks": 105,
+  "table_code_rasters": 218,
+  "epub_xhtml_documents": 311,
+  "terminology_entries": 58
+}

@@ -1,0 +1,11 @@
+{
+  "searchCount": 80,
+  "font": "20px",
+  "stacked": true,
+  "zhOnly": true,
+  "mobileNav": true,
+  "navClearOfToolbar": true,
+  "resumeAvailable": true,
+  "mobileHorizontalOverflow": false,
+  "jsErrors": []
+}

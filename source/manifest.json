@@ -1,0 +1,119 @@
+[
+  {
+    "id": "front",
+    "title_en": "Front matter",
+    "title_zh": "卷首",
+    "pdf_start": 1,
+    "pdf_end": 22,
+    "blocks": 152,
+    "words": 10237
+  },
+  {
+    "id": "ch01",
+    "title_en": "Introduction to Consistency and Coherence",
+    "title_zh": "内存一致性与缓存一致性导论",
+    "pdf_start": 23,
+    "pdf_end": 30,
+    "blocks": 54,
+    "words": 3325
+  },
+  {
+    "id": "ch02",
+    "title_en": "Coherence Basics",
+    "title_zh": "缓存一致性基础",
+    "pdf_start": 31,
+    "pdf_end": 38,
+    "blocks": 70,
+    "words": 2829
+  },
+  {
+    "id": "ch03",
+    "title_en": "Memory Consistency Motivation and Sequential Consistency",
+    "title_zh": "内存一致性的动机与顺序一致性",
+    "pdf_start": 39,
+    "pdf_end": 60,
+    "blocks": 215,
+    "words": 7710
+  },
+  {
+    "id": "ch04",
+    "title_en": "Total Store Order and the x86 Memory Model",
+    "title_zh": "全存储顺序与 x86 内存模型",
+    "pdf_start": 61,
+    "pdf_end": 76,
+    "blocks": 173,
+    "words": 5240
+  },
+  {
+    "id": "ch05",
+    "title_en": "Relaxed Memory Consistency",
+    "title_zh": "宽松内存一致性",
+    "pdf_start": 77,
+    "pdf_end": 112,
+    "blocks": 356,
+    "words": 12448
+  },
+  {
+    "id": "ch06",
+    "title_en": "Coherence Protocols",
+    "title_zh": "缓存一致性协议",
+    "pdf_start": 113,
+    "pdf_end": 128,
+    "blocks": 122,
+    "words": 5922
+  },
+  {
+    "id": "ch07",
+    "title_en": "Snooping Coherence Protocols",
+    "title_zh": "监听式缓存一致性协议",
+    "pdf_start": 129,
+    "pdf_end": 172,
+    "blocks": 280,
+    "words": 14822
+  },
+  {
+    "id": "ch08",
+    "title_en": "Directory Coherence Protocols",
+    "title_zh": "目录式缓存一致性协议",
+    "pdf_start": 173,
+    "pdf_end": 212,
+    "blocks": 293,
+    "words": 15306
+  },
+  {
+    "id": "ch09",
+    "title_en": "Advanced Topics in Coherence",
+    "title_zh": "缓存一致性高级主题",
+    "pdf_start": 213,
+    "pdf_end": 232,
+    "blocks": 146,
+    "words": 7597
+  },
+  {
+    "id": "ch10",
+    "title_en": "Consistency and Coherence for Heterogeneous Systems",
+    "title_zh": "异构系统的内存一致性与缓存一致性",
+    "pdf_start": 233,
+    "pdf_end": 272,
+    "blocks": 335,
+    "words": 15913
+  },
+  {
+    "id": "ch11",
+    "title_en": "Specifying and Validating Memory Consistency Models and Cache Coherence",
+    "title_zh": "内存一致性模型与缓存一致性的规约和验证",
+    "pdf_start": 273,
+    "pdf_end": 294,
+    "blocks": 173,
+    "words": 8587
+  },
+  {
+    "id": "bio",
+    "title_en": "Authors’ Biographies",
+    "title_zh": "作者简介",
+    "pdf_start": 295,
+    "pdf_end": 296,
+    "blocks": 10,
+    "words": 526
+  }
+]

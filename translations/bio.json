@@ -1,0 +1,12 @@
+{
+  "p295b01": "作者简介",
+  "p295b02": "VIJAY NAGARAJAN",
+  "p295b03": "Vijay Nagarajan（http://homepages.inf.ed.ac.uk/vnagaraj/）是爱丁堡大学信息学院的 Reader（英国高校高级教职）。他在加利福尼亚大学河滨分校获得计算机科学博士学位。其研究涉及计算机体系结构、编译器和计算机系统，重点关注内存一致性模型与缓存一致性协议。他曾获 Intel 青年教师荣誉奖、PACT 最佳论文奖和 IEEE Top Picks 荣誉提名，并曾经或正在担任 ISCA、MICRO、HPCA 等多个会议的程序委员会委员。他担任了 LCTES 2017 大会主席，目前担任 IEEE Computer Architecture Letters（IEEE CAL）副编辑。",
+  "p295b04": "DANIEL J. SORIN",
+  "p295b05": "Daniel J. Sorin 是杜克大学电气与计算机工程及计算机科学教授。他的研究方向为计算机体系结构，包括可靠体系结构、面向验证的处理器设计和存储系统设计。他在威斯康星大学获得电气与计算机工程博士和硕士学位，在杜克大学获得电气工程理学学士（BSE）学位。他曾获美国国家科学基金会 CAREER 奖，并曾担任英国皇家工程院杰出访问学者。他是 IEEE Computer Architecture Letters 的主编，也是 Realtime Robotics, Inc. 的创始人和首席架构师。他此前还撰写了 Synthesis 丛书著作《容错计算机体系结构》（2009 年）。",
+  "p295b06": "MARK D. HILL",
+  "p295b07": "Mark D. Hill（http://www.cs.wisc.edu/~markhill）是威斯康星大学麦迪逊分校计算机科学系的 John P. Morgridge 讲席教授和 Gene M. Amdahl 讲席教授，并兼任电气与计算机工程系教授。他的研究兴趣和成果涉及并行计算机系统设计（例如无数据竞争的内存一致性）、存储系统设计（3C 模型：强制不命中、容量不命中和冲突不命中），以及计算机仿真（GEMS 和 gem5）。Hill 十分重视合作，合作者超过 160 人，其中包括长期同事 David A. Wood。他获得了 2019 年 Eckert–Mauchly 奖和 2009 年 ACM SIGARCH Alan Berenbaum 杰出",
+  "p296b01": "服务奖。Hill 是 IEEE Fellow 和 ACM Fellow，曾于 2018—2020 年担任计算社区联盟（Computing Community Consortium）主席，于 2014—2017 年担任威斯康星大学计算机科学系主任。他拥有加利福尼亚大学伯克利分校计算机科学博士学位。",
+  "p296b02": "DAVID A. WOOD",
+  "p296b03": "David A. Wood 是威斯康星大学麦迪逊分校计算机科学系荣休教授；此前曾任该校 Sheldon B. Lubar 计算机科学讲席教授、Amar and Balinder Sohi 计算机科学教授，并兼任电气与计算机工程系教授。Wood 博士于 1990 年在加利福尼亚大学伯克利分校获得计算机科学博士学位。他获选 ACM Fellow（2006）、IEEE Fellow（2004）、威斯康星大学 Vilas Associate（2011）、Romnes Fellow（1999），以及 NSF Presidential Young Investigator（1991）。他曾担任 ACM SIGARCH 主席、ACM TOMACS 计算机系统领域编辑、ACM TACO 副编辑、ASPLOS-X（2002）程序委员会主席，并任多个会议的程序委员会委员。Wood 博士发表了 100 余篇技术论文，是 19 项美国专利的发明人之一。他与长期合作者 Mark D. Hill 共同领导了 Wisconsin Wind Tunnel 和 Wisconsin Multifacet 项目。"
+}
