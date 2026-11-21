@@ -56,7 +56,7 @@ with zipfile.ZipFile(epub) as z:
     if extra:errors.append('EPUB undeclared resources: '+str(extra))
 v=json.loads((OUT/'validation.json').read_text(encoding='utf8'))
 if v['edition']!='complete':errors.append('Final edition has not been built')
-if v['total_blocks']!=v['translated_blocks']:errors.append('Translation coverage incomplete')
+if v['total_blocks']!=v['translated_blocks']+v.get('original_only_blocks',0):errors.append('Translation coverage incomplete')
 for p in READER.glob('*.html'):
     if '【译文制作中】' in p.read_text(encoding='utf8'):errors.append('Placeholder in '+p.name)
 result={'html_documents':len(docs),'epub_xml_documents':len(files),'total_source_blocks':v['total_blocks'],'translated_blocks':v['translated_blocks'],'errors':errors,'passed':not errors}

@@ -5,6 +5,7 @@
     {
       "chapter": "front",
       "blocks": 152,
+      "original_only": 0,
       "translated": 152,
       "missing": [],
       "extra": [],
@@ -13,6 +14,7 @@
     {
       "chapter": "ch01",
       "blocks": 54,
+      "original_only": 0,
       "translated": 54,
       "missing": [],
       "extra": [],
@@ -21,86 +23,97 @@
     {
       "chapter": "ch02",
       "blocks": 70,
-      "translated": 70,
+      "original_only": 18,
+      "translated": 52,
       "missing": [],
       "extra": [],
-      "chinese_characters": 4120
+      "chinese_characters": 3894
     },
     {
       "chapter": "ch03",
       "blocks": 215,
-      "translated": 215,
+      "original_only": 60,
+      "translated": 155,
       "missing": [],
       "extra": [],
-      "chinese_characters": 10326
+      "chinese_characters": 9642
     },
     {
       "chapter": "ch04",
       "blocks": 173,
-      "translated": 173,
+      "original_only": 56,
+      "translated": 117,
       "missing": [],
       "extra": [],
-      "chinese_characters": 5898
+      "chinese_characters": 5390
     },
     {
       "chapter": "ch05",
       "blocks": 356,
-      "translated": 356,
+      "original_only": 104,
+      "translated": 252,
       "missing": [],
       "extra": [],
-      "chinese_characters": 13210
+      "chinese_characters": 11928
     },
     {
       "chapter": "ch06",
       "blocks": 122,
-      "translated": 122,
+      "original_only": 31,
+      "translated": 91,
       "missing": [],
       "extra": [],
-      "chinese_characters": 7955
+      "chinese_characters": 7055
     },
     {
       "chapter": "ch07",
       "blocks": 280,
-      "translated": 280,
+      "original_only": 134,
+      "translated": 146,
       "missing": [],
       "extra": [],
-      "chinese_characters": 17691
+      "chinese_characters": 13180
     },
     {
       "chapter": "ch08",
       "blocks": 293,
-      "translated": 293,
+      "original_only": 124,
+      "translated": 169,
       "missing": [],
       "extra": [],
-      "chinese_characters": 19299
+      "chinese_characters": 14792
     },
     {
       "chapter": "ch09",
       "blocks": 146,
-      "translated": 146,
+      "original_only": 32,
+      "translated": 114,
       "missing": [],
       "extra": [],
-      "chinese_characters": 10809
+      "chinese_characters": 10314
     },
     {
       "chapter": "ch10",
       "blocks": 335,
-      "translated": 335,
+      "original_only": 100,
+      "translated": 235,
       "missing": [],
       "extra": [],
-      "chinese_characters": 18551
+      "chinese_characters": 15620
     },
     {
       "chapter": "ch11",
       "blocks": 173,
-      "translated": 173,
+      "original_only": 12,
+      "translated": 161,
       "missing": [],
       "extra": [],
-      "chinese_characters": 10586
+      "chinese_characters": 10494
     },
     {
       "chapter": "bio",
       "blocks": 10,
+      "original_only": 0,
       "translated": 10,
       "missing": [],
       "extra": [],
@@ -108,7 +121,8 @@
     }
   ],
   "total_blocks": 2379,
-  "translated_blocks": 2379,
+  "translated_blocks": 1708,
+  "original_only_blocks": 671,
   "original_page_images": 294,
   "figure_regions": 148,
   "formula_blocks": 105,
