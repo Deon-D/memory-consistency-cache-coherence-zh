@@ -38,7 +38,7 @@
   {
     "id": "ch04",
     "title_en": "Total Store Order and the x86 Memory Model",
-    "title_zh": "全存储顺序与 x86 内存模型",
+    "title_zh": "Total Store Order 与 x86 内存模型",
     "pdf_start": 61,
     "pdf_end": 76,
     "blocks": 173,

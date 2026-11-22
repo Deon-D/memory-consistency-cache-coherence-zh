@@ -1,0 +1,22 @@
+{
+  "changed_translation_blocks": 294,
+  "chapters": {
+    "front": 3,
+    "ch01": 4,
+    "ch02": 8,
+    "ch03": 46,
+    "ch04": 53,
+    "ch05": 80,
+    "ch06": 7,
+    "ch07": 15,
+    "ch08": 2,
+    "ch09": 14,
+    "ch10": 37,
+    "ch11": 25,
+    "bio": 0
+  },
+  "translation_keys_unchanged": true,
+  "figure_translations_absent": true,
+  "storage_and_memory_terms_preserved": true,
+  "passed": true
+}
