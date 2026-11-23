@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "qa:reader": "node scripts/qa_reader.cjs",
+    "qa:sections": "node scripts/qa_sections.cjs",
     "build:cover": "node scripts/make_cover.cjs"
   },
   "devDependencies": {

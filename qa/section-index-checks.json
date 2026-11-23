@@ -1,0 +1,19 @@
+{
+  "chapters": {
+    "ch01": 7,
+    "ch02": 8,
+    "ch03": 12,
+    "ch04": 9,
+    "ch05": 27,
+    "ch06": 8,
+    "ch07": 32,
+    "ch08": 33,
+    "ch09": 17,
+    "ch10": 10,
+    "ch11": 11
+  },
+  "totalSections": 174,
+  "desktopJump": true,
+  "mobileJump": true,
+  "passed": true
+}

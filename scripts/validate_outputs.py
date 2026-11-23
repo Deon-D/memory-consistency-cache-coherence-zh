@@ -48,6 +48,16 @@ with zipfile.ZipFile(epub) as z:
                 if target not in names:errors.append(f'missing EPUB resource {n}: {ref}')
                 if u.fragment and target in xmlids and u.fragment not in xmlids[target]:errors.append(f'missing EPUB anchor {n}: {ref}')
     opf=files['EPUB/package.opf'];ns={'o':'http://www.idpf.org/2007/opf'}
+    xns={'x':'http://www.w3.org/1999/xhtml'}
+    navlinks={a.get('href'):''.join(a.itertext()) for a in files['EPUB/nav.xhtml'].findall('.//x:a',xns)}
+    for f in sorted((ROOT/'source').glob('ch*.json')):
+        chapter=json.loads(f.read_text(encoding='utf8'))
+        tr=json.loads((ROOT/'translations'/f.name).read_text(encoding='utf-8-sig'))
+        for b in chapter['blocks']:
+            if not re.match(r'^\d+(?:\.\d+)+\s',b['en']):continue
+            target=f.stem+'.xhtml#'+b['id']
+            if navlinks.get(target)!=tr[b['id']].split('\n',1)[0]:
+                errors.append('missing or incorrect EPUB section index '+target)
     itemids={i.get('id') for i in opf.findall('o:manifest/o:item',ns)}
     for i in opf.findall('o:spine/o:itemref',ns):
         if i.get('idref') not in itemids:errors.append('EPUB spine item missing '+i.get('idref'))

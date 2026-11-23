@@ -4,3 +4,5 @@ const dialog=$('#search-dialog'),input=$('#search-input'),results=$('#search-res
 })();
 
 new ResizeObserver(()=>document.documentElement.style.setProperty("--bar-height",document.querySelector(".topbar").offsetHeight+"px")).observe(document.querySelector(".topbar"));
+
+document.querySelector(".sidebar").addEventListener("click",e=>{if(window.innerWidth<=820&&e.target.closest("a")){document.querySelector(".sidebar").classList.remove("open");document.querySelector("#navtoggle").setAttribute("aria-expanded","false")}});
